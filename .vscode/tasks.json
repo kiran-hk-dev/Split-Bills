@@ -1,0 +1,74 @@
+{
+  // Deploy tasks for TripSplit World.
+  //
+  // Vercel's cloud builders do not have the Flutter SDK, so `vercel deploy`
+  // alone would fail. These tasks build on this machine (where Flutter is
+  // installed) and upload the prebuilt output instead.
+  //
+  // Run with Ctrl+Shift+B, or Command Palette -> "Tasks: Run Task".
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Deploy: Vercel (build locally + upload)",
+      "type": "shell",
+      "command": "vercel.cmd deploy --prebuilt --prod",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "dependsOn": ["Build: web (verified)"]
+    },
+    {
+      "label": "Build: web (verified)",
+      "detail": "Reads .env, passes dart-defines, and asserts the key is in the bundle.",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Build: web (preview, APP_ENV=development)",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1 -AppEnv development",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy: Vercel (link project first)",
+      "detail": "Run once to create/attach the Vercel project.",
+      "type": "shell",
+      "command": "vercel.cmd link",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Vercel: set SUPABASE_ANON_KEY env var",
+      "type": "shell",
+      "command": "vercel.cmd env add SUPABASE_ANON_KEY production",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

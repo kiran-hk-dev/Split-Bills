@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+# Vercel CLI link metadata and prebuilt output
+.vercel
+# Local credentials - never commit. .env holds the Supabase publishable key
+# and is where a service-role key would be pasted, so keep it out of history.
+.env
+!.env.example
