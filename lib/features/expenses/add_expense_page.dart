@@ -15,6 +15,7 @@ import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/searchable_select.dart';
 import 'expenses_page.dart';
 
 /// Add or edit an expense.
@@ -392,25 +393,25 @@ class _AddExpensePageState extends ConsumerState<AddExpensePage> {
                   ],
 
                   const SizedBox(height: AppSpacing.lg),
-                  DropdownButtonFormField<ExpenseCategory>(
-                    initialValue: _category,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      prefixIcon: Icon(Icons.category_outlined),
-                    ),
-                    items: <DropdownMenuItem<ExpenseCategory>>[
-                      for (final ExpenseCategory c in ExpenseCategory.values)
-                        DropdownMenuItem<ExpenseCategory>(
-                          value: c,
-                          child: Text(
-                            '${c.emoji}  ${c.label}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                    ],
-                    onChanged: (ExpenseCategory? c) =>
-                        setState(() => _category = c ?? _category),
+                  SearchableSelect<ExpenseCategory>(
+                    label: 'Category',
+                    icon: Icons.category_outlined,
+                    value: _category,
+                    items: ExpenseCategory.values,
+                    isRequired: true,
+                    // Searching the emoji prefix too means typing a single
+                    // character narrows the list.
+                    labelBuilder: (ExpenseCategory c) =>
+                        '${c.emoji}  ${c.label}',
+                    searchBuilder: (ExpenseCategory c, String q) {
+                      if (q.isEmpty) return true;
+                      final String n = q.toLowerCase().trim();
+                      return c.label.toLowerCase().contains(n) ||
+                          c.id.toLowerCase().contains(n);
+                    },
+                    onChanged: (ExpenseCategory? c) {
+                      if (c != null) setState(() => _category = c);
+                    },
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
@@ -422,29 +423,22 @@ class _AddExpensePageState extends ConsumerState<AddExpensePage> {
                   ),
 
                   const SizedBox(height: AppSpacing.lg),
-                  DropdownButtonFormField<String>(
-                    initialValue:
-                        members.any((TripMember m) => m.userId == _payerId)
+                  SearchableSelect<String>(
+                    label: 'Who paid?',
+                    icon: Icons.account_balance_wallet_outlined,
+                    helperText: 'They are credited the full amount.',
+                    value: members.any((TripMember m) => m.userId == _payerId)
                         ? _payerId
                         : (members.isNotEmpty ? members.first.userId : null),
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Who paid?',
-                      helperText: 'They are credited the full amount.',
-                      prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                    ),
-                    items: <DropdownMenuItem<String>>[
-                      for (final TripMember m in members)
-                        DropdownMenuItem<String>(
-                          value: m.userId,
-                          child: Text(
-                            m.displayName,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
+                    items: <String>[
+                      for (final TripMember m in members) m.userId,
                     ],
-                    onChanged: (String? v) =>
-                        setState(() => _payerId = v ?? _payerId),
+                    labelBuilder: (String id) => members
+                        .firstWhere((TripMember m) => m.userId == id)
+                        .displayName,
+                    onChanged: (String? v) {
+                      if (v != null) setState(() => _payerId = v);
+                    },
                   ),
 
                   const SizedBox(height: AppSpacing.xl),

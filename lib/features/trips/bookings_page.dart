@@ -458,6 +458,7 @@ class _BookingSheetState extends State<_BookingSheet> {
             ),
             const SizedBox(height: AppSpacing.lg),
             DropdownButtonFormField<BookingKind>(
+              isExpanded: true,
               initialValue: _kind,
               decoration: const InputDecoration(labelText: 'Type'),
               items: <DropdownMenuItem<BookingKind>>[

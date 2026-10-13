@@ -140,6 +140,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
                   initialValue: _currency,
                   decoration: const InputDecoration(
                     labelText: 'Preferred currency',

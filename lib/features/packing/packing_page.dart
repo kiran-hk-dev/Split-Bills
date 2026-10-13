@@ -347,6 +347,7 @@ class _NewListSheetState extends State<_NewListSheet> {
           ),
           const SizedBox(height: AppSpacing.md),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             initialValue: _kind,
             decoration: const InputDecoration(labelText: 'Type'),
             items: const <DropdownMenuItem<String>>[

@@ -384,6 +384,7 @@ class _AiPlannerPageState extends ConsumerState<AiPlannerPage> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  isExpanded: true,
                   initialValue: _travelers,
                   decoration: const InputDecoration(labelText: 'Travellers'),
                   items: <DropdownMenuItem<int>>[

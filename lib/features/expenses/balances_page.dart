@@ -693,6 +693,7 @@ class _SettlementSheetState extends State<SettlementSheet> {
             ),
             const SizedBox(height: AppSpacing.lg),
             DropdownButtonFormField<SettlementMethod>(
+              isExpanded: true,
               initialValue: _method,
               decoration: const InputDecoration(
                 labelText: 'How was it paid?',

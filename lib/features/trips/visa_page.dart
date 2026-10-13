@@ -376,6 +376,7 @@ class _VisaRecordSheetState extends State<VisaRecordSheet> {
             ),
             const SizedBox(height: AppSpacing.md),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _status,
               decoration: const InputDecoration(
                 labelText: 'Status you confirmed',

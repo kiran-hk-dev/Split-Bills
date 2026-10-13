@@ -383,6 +383,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   DropdownButtonFormField<ExpenseCategory?>(
+                    isExpanded: true,
                     initialValue: filters.category,
                     isDense: true,
                     decoration: const InputDecoration(

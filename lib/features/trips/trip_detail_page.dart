@@ -897,6 +897,7 @@ class _InviteSheetState extends State<_InviteSheet> {
           ),
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<TripRole>(
+            isExpanded: true,
             initialValue: _role,
             decoration: const InputDecoration(
               labelText: 'Role',

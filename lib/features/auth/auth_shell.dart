@@ -455,6 +455,7 @@ class _SignUpFormState extends ConsumerState<SignUpForm> {
           ),
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             initialValue: _currency,
             decoration: const InputDecoration(
               labelText: 'Preferred currency',
