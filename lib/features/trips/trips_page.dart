@@ -9,6 +9,7 @@ import '../../router/providers.dart';
 import '../../router/app_shell.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/trip_cover.dart';
 
 class TripsPage extends ConsumerStatefulWidget {
   const TripsPage({super.key});
@@ -213,29 +214,21 @@ class TripCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (trip.coverImageUrl != null && trip.coverImageUrl!.isNotEmpty)
-            ClipRRect(
+          // Always show artwork. A trip with no photo gets a stable duotone
+          // derived from its own identity, so the list is not a column of
+          // identical placeholders.
+          AspectRatio(
+            aspectRatio: 16 / 6,
+            child: TripCover(
+              imageUrl: trip.coverImageUrl,
+              seed: '${trip.countryCode ?? ''}:${trip.name}',
+              title: trip.destinationLabel,
+              subtitle: trip.dateRangeLabel,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadius.lg),
               ),
-              child: AspectRatio(
-                aspectRatio: 16 / 6,
-                child: Image.network(
-                  trip.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    height: 90,
-                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                    child: const Icon(Icons.image_not_supported_outlined),
-                  ),
-                  loadingBuilder: (
-                    BuildContext context,
-                    Widget child,
-                    ImageChunkEvent? p,
-                  ) => p == null ? child : const SkeletonBox(),
-                ),
-              ),
             ),
+          ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(

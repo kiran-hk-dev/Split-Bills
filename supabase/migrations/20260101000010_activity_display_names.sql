@@ -274,3 +274,175 @@ set summary = format(
 where a.action = 'expense_added'
   and a.summary like a.user_id::text || ' %'
   and a.metadata ? 'currency';
+
+-- ---------------------------------------------------------------------
+-- Renders an amount stored in minor units as a human amount.
+--
+-- Settlement messages used to interpolate p_amount_minor directly, so a
+-- Rs 3,000 payment logged as "Settlement recorded: 300000". Minor units are
+-- an implementation detail and must never reach a person.
+--
+-- Precision is per currency and must match the Dart registry
+-- (lib/core/money/currency.dart): dividing by 100 would be wrong for JPY
+-- (0 minor units) and for the Gulf dinars (3 minor units).
+-- ---------------------------------------------------------------------
+create or replace function public.format_minor_amount(
+  p_amount_minor bigint,
+  p_currency    char(3)
+)
+returns text
+language sql
+immutable
+as $$
+  with m(code, minor_units) as (
+    values
+      ('JPY', 0), ('VND', 0), ('KRW', 0), ('CLP', 0), ('ISK', 0),
+      ('KWD', 3), ('BHD', 3), ('OMR', 3), ('JOD', 3), ('TND', 3), ('IQD', 3)
+  )
+  select trim(trailing '.' from trim(trailing '0' from
+           to_char(
+             p_amount_minor::numeric
+               / power(10::numeric, coalesce(m.minor_units, 2)),
+             'FM999,999,999,999,990.00'
+           )))
+  from (select 1) as _
+  left join m on m.code = upper(p_currency::text);
+$$;
+
+revoke all on function public.format_minor_amount(bigint, char) from public;
+grant execute on function public.format_minor_amount(bigint, char) to authenticated;
+
+-- --- record_settlement with readable amounts ---------------------------
+create or replace function public.record_settlement(
+  p_trip_id        uuid,
+  p_from_user_id   uuid,
+  p_to_user_id     uuid,
+  p_amount_minor   bigint,
+  p_currency       char(3),
+  p_method         public.settlement_method default 'other',
+  p_reference      text default null,
+  p_notes          text default null,
+  p_settled_at     date default current_date,
+  p_base_amount_minor bigint default null,
+  p_fx_rate        numeric default null,
+  p_fx_provider    text default null,
+  p_idempotency_key text default null
+)
+returns public.settlements
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_trip       public.trips;
+  v_settlement public.settlements;
+  v_max        bigint;
+  v_balances   record;
+  v_base       bigint;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required' using errcode = '28000';
+  end if;
+  if not public.can_edit_trip(p_trip_id) then
+    raise exception 'You do not have permission to record settlements for this trip'
+      using errcode = '42501';
+  end if;
+
+  select * into v_trip from public.trips where id = p_trip_id;
+  if not found then
+    raise exception 'Trip not found' using errcode = 'P0002';
+  end if;
+
+  -- Idempotency: a retried request must not double-record a payment.
+  if p_idempotency_key is not null then
+    select * into v_settlement from public.settlements where idempotency_key = p_idempotency_key;
+    if found then return v_settlement; end if;
+  end if;
+
+  if p_from_user_id = p_to_user_id then
+    raise exception 'A member cannot settle with themselves' using errcode = '22023';
+  end if;
+  if p_amount_minor <= 0 then
+    raise exception 'Amount must be greater than zero' using errcode = '22023';
+  end if;
+
+  if not exists (
+    select 1 from public.trip_members m
+    where m.trip_id = p_trip_id and m.user_id = p_from_user_id and m.status = 'active'
+  ) or not exists (
+    select 1 from public.trip_members m
+    where m.trip_id = p_trip_id and m.user_id = p_to_user_id and m.status = 'active'
+  ) then
+    raise exception 'Both members must belong to this trip' using errcode = '42501';
+  end if;
+
+  -- Live balance check. Settling more than is owed would create a phantom
+  -- credit; settling with someone you do not owe would be nonsense.
+  select -net_minor into v_max
+  from public.trip_balances(p_trip_id) where user_id = p_from_user_id;
+
+  if v_max is null or v_max <= 0 then
+    raise exception 'This member does not owe anything in this trip'
+      using errcode = '22023';
+  end if;
+
+  select net_minor into v_balances
+  from public.trip_balances(p_trip_id) where user_id = p_to_user_id;
+
+  if v_balances is null or v_balances <= 0 then
+    raise exception 'This member is not owed anything in this trip'
+      using errcode = '22023';
+  end if;
+
+  v_max := least(v_max, v_balances);
+  if p_amount_minor > v_max then
+    -- RAISE EXCEPTION takes a format string directly; wrapping it in
+    -- format(...) makes the parser read 'format' as an exception condition.
+    raise exception 'Maximum valid settlement is %s %s', v_max, v_trip.base_currency
+      using errcode = '22023';
+  end if;
+
+  if p_base_amount_minor is not null and p_base_amount_minor > 0 then
+    v_base := p_base_amount_minor;
+  elsif p_currency = v_trip.base_currency then
+    v_base := p_amount_minor;
+  else
+    raise exception
+      'A base-currency amount and exchange rate are required to settle in a different currency'
+      using errcode = '22023';
+  end if;
+
+  insert into public.settlements (
+    trip_id, from_user_id, to_user_id, amount_minor, currency,
+    base_amount_minor, fx_rate, fx_provider, fx_fetched_at,
+    status, method, reference, notes, settled_at, idempotency_key, created_by
+  )
+  values (
+    p_trip_id, p_from_user_id, p_to_user_id, p_amount_minor, upper(p_currency),
+    v_base, coalesce(p_fx_rate, 1), p_fx_provider,
+    case when p_fx_provider is null then null else now() end,
+    -- 'recorded' only. A payment is never marked verified by a client click.
+    'recorded', p_method, p_reference, p_notes, coalesce(p_settled_at, current_date),
+    p_idempotency_key, auth.uid()
+  )
+  returning * into v_settlement;
+
+  insert into public.settlement_allocations (settlement_id, trip_id, user_id, base_amount_minor)
+  values (v_settlement.id, p_trip_id, p_from_user_id, v_base),
+         (v_settlement.id, p_trip_id, p_to_user_id, -v_base);
+
+  perform public.log_activity(
+    p_trip_id, 'settlement', v_settlement.id, 'settlement_recorded',
+    format('Settlement recorded: %s %s', public.format_minor_amount(p_amount_minor, p_currency), p_currency),
+    jsonb_build_object('from', p_from_user_id, 'to', p_to_user_id, 'amount', p_amount_minor)
+  );
+
+  perform public.notify_user(
+    p_from_user_id, 'settlement', 'Settlement recorded',
+    format('A settlement of %s %s was recorded in your favour.', public.format_minor_amount(p_amount_minor, p_currency), p_currency),
+    jsonb_build_object('trip_id', p_trip_id, 'settlement_id', v_settlement.id)
+  );
+
+  return v_settlement;
+end;
+$$;

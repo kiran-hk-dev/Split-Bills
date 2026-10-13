@@ -13,6 +13,7 @@ import '../../router/app_shell.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/trip_cover.dart';
 
 /// Per-trip figures used by the dashboard cards.
 class TripFinanceSummary {
@@ -445,28 +446,15 @@ class _NextTripCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            if (trip.coverImageUrl != null && trip.coverImageUrl!.isNotEmpty)
+// Always render artwork; a trip with no photo gets its stable duotone.
               AspectRatio(
                 aspectRatio: 16 / 7,
-                child: Image.network(
-                  trip.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                  loadingBuilder:
-                      (
-                        BuildContext context,
-                        Widget child,
-                        ImageChunkEvent? progress,
-                      ) {
-                        if (progress == null) return child;
-                        return const SkeletonBox();
-                      },
+                child: TripCover(
+                  imageUrl: trip.coverImageUrl,
+                  seed: '${trip.countryCode ?? ''}:${trip.name}',
+                  title: trip.name,
+                  subtitle: trip.dateRangeLabel,
                 ),
-              )
-            else
-              Container(
-                height: 8,
-                color: theme.colorScheme.primary.withValues(alpha: 0.08),
               ),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),

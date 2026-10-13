@@ -14,6 +14,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/trip_cover.dart';
 
 /// Hub for one trip. Every module is scoped to this trip id.
 class TripDetailPage extends ConsumerStatefulWidget {
@@ -141,37 +142,14 @@ class _TripDetailBody extends ConsumerWidget {
                   ],
                 ),
               ),
-              background:
-                  trip.coverImageUrl != null && trip.coverImageUrl!.isNotEmpty
-                  ? Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        Image.network(
-                          trip.coverImageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) =>
-                              _FlatHero(color: theme.colorScheme.primary),
-                          loadingBuilder: (
-                            BuildContext c,
-                            Widget child,
-                            ImageChunkEvent? p,
-                          ) => p == null ? child : const SkeletonBox(),
-                        ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: <Color>[
-                                Colors.transparent,
-                                Color(0xB3000000),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : _FlatHero(color: theme.colorScheme.primary),
+              background: TripCover(
+                imageUrl: trip.coverImageUrl,
+                seed: '${trip.countryCode ?? ''}:${trip.name}',
+                // No title here: the trip name and dates are already laid
+                // out underneath, so overlaying them would duplicate them.
+                showScrim: true,
+                borderRadius: BorderRadius.zero,
+              ),
             ),
             actions: <Widget>[
               PopupMenuButton<String>(
@@ -449,15 +427,6 @@ class _TripDetailBody extends ConsumerWidget {
   }
 }
 
-class _FlatHero extends StatelessWidget {
-  const _FlatHero({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(color: color.withValues(alpha: 0.12));
-}
 
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.trip, required this.members});

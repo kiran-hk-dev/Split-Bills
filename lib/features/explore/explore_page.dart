@@ -144,14 +144,20 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
   Widget _buildBody(AsyncValue<List<Destination>> async) {
     if (_showSaved) {
+      // No Expanded here. This Column is a direct child of SliverToBoxAdapter,
+      // so its height is unbounded and a flex child throws
+      // "RenderFlex children have non-zero flex but incoming height
+      // constraints are unbounded". The sliver scrolls, so the list simply
+      // takes the height it needs.
       return const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
           SectionHeader(
             title: 'Saved destinations',
             padding: EdgeInsets.only(bottom: AppSpacing.md),
           ),
-          Expanded(child: _SavedList()),
+          _SavedList(),
         ],
       );
     }
