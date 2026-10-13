@@ -1,21 +1,43 @@
 {
-  // Deploy tasks for TripSplit World.
-  //
-  // Vercel's cloud builders do not have the Flutter SDK, so `vercel deploy`
-  // alone would fail. These tasks build on this machine (where Flutter is
-  // installed) and upload the prebuilt output instead.
+  // Ship pipeline for TripSplit World.
   //
   // Run with Ctrl+Shift+B, or Command Palette -> "Tasks: Run Task".
+  //
+  // IMPORTANT: vercel.json sets "buildCommand": null, so `vercel deploy`
+  // uploads build/web *as it is* and never recompiles. That makes an
+  // out-of-date build/web the single easiest way to ship yesterday's code,
+  // so every deploy task below depends on the verified build task.
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Deploy: Vercel (build locally + upload)",
-      "detail": "Vercel CLI runs vercel.json's buildCommand locally (tool/build_web.ps1), which reads .env and verifies the key is in the bundle.",
+      "label": "Ship: commit, push, build, deploy",
+      "detail": "Full pipeline. Use this for a normal release.",
       "type": "shell",
-      "command": "vercel.cmd deploy --prod",
-      "options": {
-        "cwd": "${workspaceFolder}"
+      "command": "echo Shipping...",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
       },
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Git: commit and push",
+        "Build: web (verified)",
+        "Deploy: Vercel"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Git: commit and push",
+      "detail": "Stages everything, commits, and pushes to origin/main.",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\git_ship.ps1",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -25,49 +47,58 @@
     },
     {
       "label": "Build: web (verified)",
-      "detail": "Reads .env, passes dart-defines, and asserts the key is in the bundle.",
+      "detail": "Reads .env, passes --dart-define, then asserts the Supabase key is in the bundle before continuing.",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
         "clear": true
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
+      }
+    },
+    {
+      "label": "Deploy: Vercel",
+      "detail": "Uploads build/web. Requires the verified build to have run first.",
+      "type": "shell",
+      "command": "vercel.cmd deploy --prod",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
       }
     },
     {
       "label": "Build: web (preview, APP_ENV=development)",
+      "detail": "Local-testing build. Do not deploy this - it bakes in a development APP_ENV.",
       "type": "shell",
       "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1 -AppEnv development",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "Deploy: Vercel (link project first)",
-      "detail": "Run once to create/attach the Vercel project.",
+      "label": "Vercel: link project (one time)",
+      "detail": "Answer 'no' to connecting a git repository - Vercel's cloud has no Flutter SDK.",
       "type": "shell",
       "command": "vercel.cmd link",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     },
     {
-      "label": "Vercel: set SUPABASE_ANON_KEY env var",
+      "label": "Vercel: set SUPABASE_ANON_KEY (one time)",
       "type": "shell",
       "command": "vercel.cmd env add SUPABASE_ANON_KEY production",
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Vercel: set APP_ENV (one time)",
+      "type": "shell",
+      "command": "vercel.cmd env add APP_ENV production",
+      "options": { "cwd": "${workspaceFolder}" },
       "problemMatcher": []
     }
   ]
