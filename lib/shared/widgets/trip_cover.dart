@@ -4,18 +4,21 @@ import '../../core/theme/app_theme.dart';
 
 /// Cover artwork for a trip.
 ///
-/// Real trips rarely have a `cover_image_url`, and the previous fallback was a
-/// flat block of the primary colour, so most of the app was a wall of identical
-/// rectangles. This derives a stable, attractive duotone from the trip itself
-/// instead, so every trip is visually distinct and colourful while staying
-/// inside the app's palette family.
+/// Real trips rarely have a `cover_image_url`. The first attempt at a fallback
+/// used eight saturated duotones and looked like a paint chart: hot purple,
+/// bright green and burnt orange fought the navy/teal theme, and the hash put
+/// two unrelated trips on the same colour.
 ///
-/// The hue is deterministic: the same trip always gets the same cover, on any
-/// device and across restarts, because it is derived from the country code and
-/// name rather than anything random.
+/// This version is deliberately quiet:
 ///
-/// If a cover image *is* set, it is used and the duotone remains the fallback
-/// while loading and if the network fails.
+///  * Every palette is dark and desaturated, so white overlay text is always
+///    legible and the set reads as one family.
+///  * Hues are drawn from a narrow band around the brand colours (sea, teal,
+///    slate, indigo, pine, plum, sand, charcoal) rather than the full wheel.
+///  * A soft radial highlight and a large, low-opacity destination mark give
+///    depth and per-trip identity without shouting.
+///  * The palette index uses a finalising mix step, so adjacent-looking seeds
+///    do not land on the same colour.
 class TripCover extends StatelessWidget {
   const TripCover({
     super.key,
@@ -40,56 +43,76 @@ class TripCover extends StatelessWidget {
 
   final BorderRadius? borderRadius;
 
-  /// Darkens the lower half so overlaid text stays readable over any photo.
+  /// Darkens the lower half so overlaid text stays readable over any artwork.
   final bool showScrim;
 
-  /// Curated duotones rather than a free hue.
-  ///
-  /// A hue derived straight from a hash produces muddy yellows and hot pinks
-  /// that fight the navy/teal theme. These pairs are all similar in lightness,
-  /// so any of them sits comfortably behind white text.
+  /// Dark, desaturated duotones. All sit in a similar lightness range on
+  /// purpose: that is what keeps white text readable and the set cohesive.
   static const List<List<Color>> _palettes = <List<Color>>[
-    <Color>[Color(0xFF0B4F6C), Color(0xFF0E7490)], // lagoon
-    <Color>[Color(0xFF134E4A), Color(0xFF0F766E)], // teal
-    <Color>[Color(0xFF1E3A8A), Color(0xFF2563EB)], // deep sea
-    <Color>[Color(0xFF4C1D95), Color(0xFF7E22CE)], // dusk
-    <Color>[Color(0xFF7C2D12), Color(0xFFEA580C)], // sunset
-    <Color>[Color(0xFF831843), Color(0xFFDB2777)], // blossom
-    <Color>[Color(0xFF14532D), Color(0xFF16A34A)], // canopy
-    <Color>[Color(0xFF3F3F46), Color(0xFF71717A)], // slate
+    <Color>[Color(0xFF0B3C5D), Color(0xFF14506E)], // deep sea
+    <Color>[Color(0xFF0C4A4A), Color(0xFF14625F)], // teal
+    <Color>[Color(0xFF2C3A4F), Color(0xFF3D5068)], // slate
+    <Color>[Color(0xFF243A6B), Color(0xFF2F4A85)], // indigo
+    <Color>[Color(0xFF1B4332), Color(0xFF2D6A4F)], // pine
+    <Color>[Color(0xFF3D2C4A), Color(0xFF56406B)], // plum
+    <Color>[Color(0xFF4A3B2A), Color(0xFF6B5540)], // sand
+    <Color>[Color(0xFF33343A), Color(0xFF4A4C55)], // charcoal
   ];
 
-  /// Deterministic palette index. FNV-1a: small, stable, well distributed.
+  /// Deterministic palette index.
+  ///
+  /// FNV-1a alone clustered: several plausible trip names hashed into the same
+  /// slot. The finalising multiply-xor spreads neighbouring inputs without
+  /// making the mapping any less stable.
   static int paletteIndex(String seed) {
     if (seed.isEmpty) return 0;
-    int hash = 0x811c9dc5;
+    int h = 0x811c9dc5;
     for (final int unit in seed.codeUnits) {
-      hash ^= unit;
-      hash = (hash * 0x01000193) & 0x7fffffff;
+      h ^= unit;
+      h = (h * 0x01000193) & 0x7fffffff;
     }
-    return hash % _palettes.length;
+    // Final avalanche step.
+    h ^= h >> 15;
+    h = (h * 0x2c1b3c6d) & 0x7fffffff;
+    h ^= h >> 12;
+    return h % _palettes.length;
   }
 
-  static List<Color> paletteFor(String seed) =>
-      _palettes[paletteIndex(seed)];
+  static List<Color> paletteFor(String seed) => _palettes[paletteIndex(seed)];
+
+  /// A short typographic mark for the trip: the country code when the seed
+  /// carries one, otherwise the first letter of the name.
+  ///
+  /// Always ASCII so it cannot fall back to tofu on a platform without the
+  /// glyph.
+  static String _monogram(String seed) {
+    final String s = seed.trim();
+    if (s.isEmpty) return '';
+
+    final int colon = s.indexOf(':');
+    final String head = (colon > 0 ? s.substring(0, colon) : s).trim();
+    if (colon > 0 && head.length <= 3 && head == head.toUpperCase()) {
+      return head;
+    }
+    return s.substring(0, 1).toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius radius =
-        borderRadius ?? BorderRadius.circular(AppRadius.md);
+    final BorderRadius radius = borderRadius ?? BorderRadius.circular(AppRadius.md);
+    final List<Color> colors = paletteFor(seed ?? '');
+    final String s = seed ?? '';
 
-    final Widget gradient = DecoratedBox(
+    Widget art = DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: paletteFor(seed ?? ''),
+          colors: colors,
         ),
       ),
       child: const SizedBox.expand(),
     );
-
-    Widget art = gradient;
 
     final String? url = imageUrl;
     if (url != null && url.isNotEmpty) {
@@ -99,8 +122,8 @@ class TripCover extends StatelessWidget {
         // The duotone stays visible while loading and if the network fails, so
         // a trip never renders as an empty hole.
         loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? p) =>
-            p == null ? child : gradient,
-        errorBuilder: (_, _, _) => gradient,
+            p == null ? child : art,
+        errorBuilder: (_, _, _) => art,
       );
     }
 
@@ -114,31 +137,81 @@ class TripCover extends StatelessWidget {
         fit: StackFit.expand,
         children: <Widget>[
           art,
-          if (hasOverlay || showScrim)
+
+          // Soft top-left highlight for depth. Keeps a flat duotone from
+          // looking like an empty rectangle.
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(-0.7, -0.9),
+                radius: 1.3,
+                colors: <Color>[
+                  Colors.white.withValues(alpha: 0.10),
+                  Colors.white.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+
+          // Large, faint destination mark. Identity without a photo.
+          //
+          // Initials, not the country flag: Windows has no flag emoji glyphs
+          // and renders them as empty boxes, so a flag watermark looked broken
+          // on exactly the platform this app is built on. Letters always render.
+          if (imageUrl == null || imageUrl!.isEmpty)
+            Positioned(
+              right: -AppSpacing.sm,
+              top: -AppSpacing.sm,
+              child: IgnorePointer(
+                child: Text(
+                  _monogram(s),
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.09),
+                  ),
+                ),
+              ),
+            ),
+
+          // Legibility scrim. Stronger than before: white text sat on bright
+          // fills and was hard to read.
+          if (showScrim || hasOverlay)
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: <Color>[
-                    if (!hasOverlay) Colors.transparent
-                    else const Color(0x33000000),
-                    if (hasOverlay) const Color(0xCC000000) else Colors.transparent,
+                    if (!hasOverlay)
+                      Colors.transparent
+                    else
+                      Colors.black.withValues(alpha: 0.18),
+                    if (hasOverlay) Colors.black.withValues(alpha: 0.62) else Colors.transparent,
                   ],
-                  stops: const <double>[0.35, 1],
+                  stops: const <double>[0.30, 1],
                 ),
               ),
             ),
+
           if (hasOverlay)
             Align(
               alignment: Alignment.bottomLeft,
               child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: <Widget>[
                     if (leadingEmoji != null && leadingEmoji!.isNotEmpty) ...[
-                      Text(leadingEmoji!, style: const TextStyle(fontSize: 20)),
+                      Text(leadingEmoji!, style: const TextStyle(fontSize: 18)),
                       const SizedBox(width: AppSpacing.sm),
                     ],
                     Expanded(
@@ -155,6 +228,7 @@ class TripCover extends StatelessWidget {
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 16,
+                                height: 1.15,
                               ),
                             ),
                           if (subtitle != null && subtitle!.isNotEmpty)
@@ -162,9 +236,10 @@ class TripCover extends StatelessWidget {
                               subtitle!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xDDFFFFFF),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.82),
                                 fontSize: 12,
+                                height: 1.3,
                               ),
                             ),
                         ],
