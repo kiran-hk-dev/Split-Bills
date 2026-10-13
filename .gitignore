@@ -52,3 +52,8 @@ app.*.map.json
 # and is where a service-role key would be pasted, so keep it out of history.
 .env
 !.env.example
+.env*
+# Vercel writes a VERCEL_OIDC_TOKEN here during "vercel link". That is a
+# credential - never commit it.
+.env.local
+!.env.local.example

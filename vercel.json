@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "flutter build web --release --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY --dart-define=APP_ENV=$APP_ENV",
+  "buildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1",
   "outputDirectory": "build/web",
   "cleanUrls": true,
   "trailingSlash": false,

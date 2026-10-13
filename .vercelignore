@@ -1,0 +1,38 @@
+# Files Vercel uploads.
+#
+# Vercel applies .vercelignore in preference to .gitignore, and it uploads the
+# project tree rather than just the build output. That matters here: Flutter
+# leaves large incremental-compiler caches behind (a single app.dill is ~65 MB
+# and a .cache.dill.track.dill reached 109 MB), which blows past Vercel's 100 MB
+# per-file limit even though none of it is deployed.
+#
+# Only build/web is needed, because that is what outputDirectory points at.
+# Everything here is regenerable by `flutter build web`.
+
+.dart_tool
+node_modules
+.idea
+.vscode
+android
+ios
+macos
+windows
+linux
+
+# Everything under build/ except the web bundle itself.
+build/*
+!build/web
+
+# Belt and braces: no kernel/dill caches ever leave the machine.
+*.dill
+*.dill.track.dill
+
+# Local credentials. .env holds the Supabase publishable key and is the place a
+# service-role key would be pasted; .env.local holds a VERCEL_OIDC_TOKEN
+# written by `vercel link`. Neither belongs in an upload.
+.env
+.env.*
+!.env.example
+
+# Never deploy a stray service-role key if one is ever written here.
+.env.functions

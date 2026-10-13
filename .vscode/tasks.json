@@ -10,8 +10,9 @@
   "tasks": [
     {
       "label": "Deploy: Vercel (build locally + upload)",
+      "detail": "Vercel CLI runs vercel.json's buildCommand locally (tool/build_web.ps1), which reads .env and verifies the key is in the bundle.",
       "type": "shell",
-      "command": "vercel.cmd deploy --prebuilt --prod",
+      "command": "vercel.cmd deploy --prod",
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -20,8 +21,7 @@
         "reveal": "always",
         "panel": "dedicated",
         "clear": true
-      },
-      "dependsOn": ["Build: web (verified)"]
+      }
     },
     {
       "label": "Build: web (verified)",
