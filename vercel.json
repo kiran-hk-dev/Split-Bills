@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -NoProfile -ExecutionPolicy Bypass -File tool\\build_web.ps1",
+  "buildCommand": null,
   "outputDirectory": "build/web",
   "cleanUrls": true,
   "trailingSlash": false,
