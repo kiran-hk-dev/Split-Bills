@@ -57,3 +57,7 @@ app.*.map.json
 # credential - never commit it.
 .env.local
 !.env.local.example
+# Third-party dependencies restored by 
+pm install / pub get.
+# These are 300+ files of other people's code and binaries.
+node_modules/
