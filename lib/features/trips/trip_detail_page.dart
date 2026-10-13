@@ -29,23 +29,36 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
   @override
   void initState() {
     super.initState();
+    // Publish the trip id so the screens this one links to (itinerary,
+    // expenses, visa) can read it from shared state.
+    //
+    // This used to *clear* it, which made the page blank itself out: clearing
+    // tripped currentTripProvider to null, the page rendered "Trip not found",
+    // and opening any trip from My Trips appeared broken.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(selectedTripIdProvider.notifier).clear();
+      if (!mounted) return;
+      final String id = widget.tripId;
+      if (id.isEmpty) return;
+      if (ref.read(selectedTripIdProvider) != id) {
+        ref.read(selectedTripIdProvider.notifier).select(id);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<Trip?> async = ref.watch(currentTripProvider);
+    // Keyed on the route parameter, so a refresh or a deep link still resolves.
+    final AsyncValue<Trip?> async = ref.watch(
+      tripByIdProvider(widget.tripId),
+    );
 
     return async.when(
-      loading: () =>
-          const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () => const Scaffold(body: _TripDetailSkeleton()),
       error: (Object err, StackTrace _) => Scaffold(
         appBar: AppBar(),
         body: ErrorStateView(
           message: 'Could not load this trip.\n$err',
-          onRetry: () => ref.invalidate(currentTripProvider),
+          onRetry: () => ref.invalidate(tripByIdProvider(widget.tripId)),
         ),
       ),
       data: (Trip? trip) {
@@ -54,13 +67,45 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
             appBar: AppBar(),
             body: ErrorStateView(
               title: 'Trip not found',
-              message: 'It may have been deleted, or you may no longer be a member of it.',
+              message:
+                  'It may have been deleted, or you may no longer be a member of it.',
               onRetry: () => context.go('/trips'),
             ),
           );
         }
         return _TripDetailBody(trip: trip);
       },
+    );
+  }
+}
+
+/// Placeholder shown while a trip loads.
+///
+/// A skeleton rather than a spinner: the layout is already known, so the page
+/// does not jump when the data lands.
+class _TripDetailSkeleton extends StatelessWidget {
+  const _TripDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SkeletonBox(height: 28),
+            SizedBox(height: AppSpacing.sm),
+            SkeletonBox(height: 18),
+            SizedBox(height: AppSpacing.xl),
+            SkeletonBox(height: 160),
+            SizedBox(height: AppSpacing.lg),
+            SkeletonBox(height: 96),
+            SizedBox(height: AppSpacing.lg),
+            SkeletonBox(height: 96),
+          ],
+        ),
+      ),
     );
   }
 }

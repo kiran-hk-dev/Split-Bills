@@ -268,6 +268,24 @@ final currentTripProvider = FutureProvider.autoDispose<Trip?>((Ref ref) async {
   return ref.watch(tripRepositoryProvider).getTrip(tripId);
 });
 
+/// Loads a trip by the id in the URL.
+///
+/// This is the source of truth for trip-scoped screens. Reading the id from the
+/// route rather than [selectedTripIdProvider] means a refresh or a deep link
+/// works, and the page cannot blank itself out by clearing shared state during
+/// its own build.
+final tripByIdProvider = FutureProvider.autoDispose
+    .family<Trip?, String>((Ref ref, String tripId) async {
+      if (tripId.isEmpty) return null;
+      if (AppConfig.demoMode) {
+        return DemoFixtures.trips.firstWhere(
+          (Trip t) => t.id == tripId,
+          orElse: () => DemoFixtures.trips.first,
+        );
+      }
+      return ref.watch(tripRepositoryProvider).getTrip(tripId);
+    });
+
 final membersProvider = FutureProvider.autoDispose
     .family<List<TripMember>, String>((Ref ref, String tripId) async {
       if (AppConfig.demoMode) return DemoFixtures.membersFor(tripId);
