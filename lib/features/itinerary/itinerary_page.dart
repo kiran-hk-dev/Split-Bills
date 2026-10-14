@@ -193,8 +193,14 @@ class _DayStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The strip stacks three lines of text. A fixed 72px overflowed by 2px at
+    // the default text size and by far more at an enlarged accessibility
+    // scale, so the height follows the text scale instead. 56 is the measured
+    // height of the three lines at 1.0x, plus 16 for padding and slack.
+    final double textScale = MediaQuery.textScalerOf(context).scale(1);
+
     return SizedBox(
-      height: 72,
+      height: 56 * textScale + 16,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -208,7 +214,7 @@ class _DayStrip extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.md),
             child: Container(
               width: 68,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               decoration: BoxDecoration(
                 color: isSelected
                     ? Theme.of(context).colorScheme.primary

@@ -2,17 +2,21 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Structural guard for the Explore "Saved" tab.
+/// Structural guard for the Explore body layout.
 ///
-/// `ExplorePage._buildBody` returns a Column that is handed straight to
-/// `SliverToBoxAdapter`. A Column inside a sliver has unbounded height, so an
-/// `Expanded` in that Column cannot resolve and Flutter throws at runtime:
+/// The body used to be handed to a single `SliverToBoxAdapter` as a Column.
+/// A Column inside a sliver has unbounded height, so an `Expanded` in that
+/// Column cannot resolve and Flutter throws at runtime:
 ///
 ///   RenderFlex children have non-zero flex but incoming height constraints
 ///   are unbounded
 ///
-/// The saved list shrink-wraps its own content and the outer sliver already
-/// scrolls, so no flex was ever required.
+/// That took down the whole Explore tab — it could not render at all.
+///
+/// The body now returns real slivers (`_bodySlivers`), so the results list is
+/// a lazy `SliverList` sharing the page's one scroll position instead of a
+/// `ListView` nested inside the outer scroll view. The saved branch still goes
+/// through a `SliverToBoxAdapter`, so it must still shrink-wrap.
 ///
 /// This asserts against the source rather than pumping the widget. That is
 /// deliberate: `destinationResultsProvider` and `wishlistProvider` are private
@@ -20,7 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// in a widget test without loading live Supabase data. Exposing them purely
 /// for testability is a larger change than the bug it guards.
 void main() {
-  group('explore_page saved body layout', () {
+  group('explore_page body layout', () {
     late String source;
 
     setUpAll(() {
@@ -28,7 +32,7 @@ void main() {
     });
 
     test('the saved branch does not use a flex child', () {
-      // Isolate the _showSaved branch of _buildBody.
+      // Isolate the _showSaved branch of _bodySlivers.
       final int start = source.indexOf('if (_showSaved) {');
       expect(start, greaterThan(-1), reason: 'saved branch not found');
 
@@ -53,13 +57,38 @@ void main() {
       expect(source, contains('NeverScrollableScrollPhysics'));
     });
 
-    test('the body is passed to a sliver, so height really is unbounded', () {
-      // Guards the premise of the test above.
+    test('the body is spread in as slivers, not boxed into one adapter', () {
+      // The original crash needed a box child with a flex inside it. Returning
+      // slivers removes the possibility at the type level.
       expect(
         source,
-        contains('SliverToBoxAdapter(child: _bodyColumn(async))'),
-        reason: 'if the body stopped being a sliver child, the constraint '
-            'argument no longer applies',
+        contains('..._bodySlivers(async)'),
+        reason: 'the body must be spread into the sliver list',
+      );
+      expect(
+        source,
+        isNot(contains('SliverToBoxAdapter(child: _bodyColumn(')),
+        reason: 'boxing the body into one SliverToBoxAdapter is what allowed '
+            'the unbounded-height flex crash to reappear',
+      );
+    });
+
+    test('the results list is a lazy sliver, not a nested scrollable', () {
+      // A ListView inside the page's CustomScrollView competes for the same
+      // gesture and builds every card up front.
+      expect(source, contains('SliverList.separated'));
+
+      final int listStart = source.indexOf('ListView.separated(');
+      expect(
+        listStart,
+        greaterThan(-1),
+        reason: 'only the horizontal category rail should use ListView.separated',
+      );
+      final int sliverList = source.indexOf('SliverList.separated(');
+      expect(
+        sliverList,
+        greaterThan(listStart),
+        reason: 'the results list must be the sliver one',
       );
     });
   });

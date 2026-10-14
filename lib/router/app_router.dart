@@ -31,6 +31,7 @@ import '../features/trips/trip_detail_page.dart';
 import '../features/trips/trips_page.dart';
 import '../features/trips/visa_page.dart';
 import '../shared/widgets/common.dart';
+import '../shared/widgets/motion.dart';
 import 'app_shell.dart';
 import 'providers.dart';
 
@@ -395,26 +396,55 @@ class _SplashPageState extends ConsumerState<SplashPage> {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
     return Scaffold(
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+            // The mark breathes in rather than appearing at full size, so the
+            // wait reads as the app starting up instead of a frozen splash.
+            FadeSlideIn(
+              offset: const Offset(0, 0.12),
+              child: Image.asset(
+                'assets/images/brand_logo.png',
+                width: 88,
+                height: 88,
+                filterQuality: FilterQuality.medium,
+                // The asset is decoration; if it ever fails to load the app
+                // must still start.
+                errorBuilder: (_, _, _) => const BrandMark(size: 88),
               ),
-              child: const Icon(Icons.explore, size: 32, color: Colors.white),
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text('TripSplit World', style: theme.textTheme.titleLarge),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 120),
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    'TripSplit World',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Plan it. Split it. Settle it.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.xxl),
-            const SizedBox(
-              width: 120,
-              child: LinearProgressIndicator(minHeight: 3),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 220),
+              child: SizedBox(
+                width: 140,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                  child: LinearProgressIndicator(minHeight: 4),
+                ),
+              ),
             ),
           ],
         ),

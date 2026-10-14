@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/money/currency.dart';
@@ -13,6 +12,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import 'account_actions.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -359,41 +359,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     }
   }
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    if (AppConfig.demoMode) {
-      showFeedback(
-        context,
-        'Demo mode has no real session to sign out of.',
-        isError: true,
-      );
-      return;
-    }
-    if (!SupabaseService.isInitialised) {
-      showFeedback(
-        context,
-        'Supabase is not configured, so there is no session to end.',
-        isError: true,
-      );
-      return;
-    }
-
-    final bool ok = await confirmDestructive(
-      context,
-      title: 'Sign out?',
-      message:
-          'You will need your email and password to sign back in. Trips and expenses '
-          'stay on your account.',
-      confirmLabel: 'Sign out',
-    );
-    if (!ok || !context.mounted) return;
-
-    await ref.read(authControllerProvider.notifier).signOut();
-    if (!context.mounted) return;
-    // The router listens for the signed-out state and returns to /welcome, but
-    // redirect explicitly so a sign-out from a deep link cannot leave the user
-    // on a screen that needs a session.
-    if (context.mounted) context.go('/welcome');
-  }
+  /// Delegates to the shared handler so sign-out behaves identically here and
+  /// on the Profile page, which is the more discoverable of the two.
+  Future<void> _signOut(BuildContext context, WidgetRef ref) =>
+      signOutAction(context, ref);
 
   Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
     final bool ok = await confirmDestructive(

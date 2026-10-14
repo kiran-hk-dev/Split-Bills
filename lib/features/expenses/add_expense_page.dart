@@ -734,7 +734,10 @@ class _MethodInputs extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
             child: Row(
               children: <Widget>[
-                MemberAvatar(initials: _name(id).substring(0, 1), size: 28),
+                // MemberAvatar normalises and shortens the initials itself.
+                // Taking substring(0, 1) here threw a RangeError whenever the
+                // member had no display name.
+                MemberAvatar(initials: _name(id), size: 28),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(_name(id), style: theme.textTheme.bodyMedium),

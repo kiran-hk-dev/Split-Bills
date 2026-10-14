@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tripsplit_world/core/config/app_config.dart';
 import 'package:tripsplit_world/features/profile/settings_page.dart';
 import 'package:tripsplit_world/shared/widgets/common.dart';
 
@@ -79,6 +80,10 @@ void main() {
         expect(find.byType(SnackBar), findsOneWidget);
         expect(find.textContaining('no session'), findsOneWidget);
       },
+      // Only meaningful outside demo mode: with DEMO_MODE on there IS a demo
+      // session, so sign-out reports demo mode instead of a missing session.
+      // Demo mode is compiled in, so it cannot be toggled at runtime.
+      skip: AppConfig.demoMode,
     );
 
     testWidgets('leaves the user on the page when there is nothing to end', (

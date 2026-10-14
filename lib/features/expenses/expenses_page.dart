@@ -693,8 +693,11 @@ class ExpenseDetailSheet extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                   child: Row(
                     children: <Widget>[
+                      // An empty display name used to make this
+                      // `''.substring(0, 1)` throw a RangeError. MemberAvatar
+                      // normalises the initials itself.
                       MemberAvatar(
-                        initials: (share.fullName ?? '?').substring(0, 1),
+                        initials: share.fullName ?? '?',
                         size: 26,
                       ),
                       const SizedBox(width: AppSpacing.md),

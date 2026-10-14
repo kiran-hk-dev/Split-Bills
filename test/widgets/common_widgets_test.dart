@@ -31,8 +31,8 @@ void main() {
     ) async {
       await pumpShell(tester, const Size(390, 844));
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byKey(const Key('app-bottom-nav')), findsOneWidget);
+      expect(find.byKey(const Key('app-side-nav')), findsNothing);
       expect(find.text('Home'), findsOneWidget);
       // Five primary destinations, labelled.
       for (final AppTab tab in AppTab.values) {
@@ -49,18 +49,20 @@ void main() {
     ) async {
       await pumpShell(tester, const Size(320, 640));
 
-      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('app-bottom-nav')), findsOneWidget);
       // No overflow errors at the narrowest supported width.
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a tablet-width shell switches to a navigation rail', (
+    testWidgets('a tablet-width shell switches to a side rail', (
       WidgetTester tester,
     ) async {
       await pumpShell(tester, const Size(1024, 768));
 
-      expect(find.byType(NavigationRail), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byKey(const Key('app-side-nav')), findsOneWidget);
+      expect(find.byKey(const Key('app-bottom-nav')), findsNothing);
+      // Collapsed at this width: no rail labels, and no wordmark either.
+      expect(find.text('My trips'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
@@ -69,12 +71,30 @@ void main() {
     ) async {
       await pumpShell(tester, const Size(1440, 900));
 
-      final NavigationRail rail = tester.widget<NavigationRail>(
-        find.byType(NavigationRail),
-      );
-      expect(rail.extended, isTrue);
+      expect(find.byKey(const Key('app-side-nav')), findsOneWidget);
       expect(find.text('My trips'), findsOneWidget);
+      expect(find.text('TripSplit'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the rail gets wider on desktop than on a tablet', (
+      WidgetTester tester,
+    ) async {
+      await pumpShell(tester, const Size(1024, 768));
+      final double tabletWidth = tester.getSize(
+        find.byKey(const Key('app-side-nav')),
+      ).width;
+
+      await pumpShell(tester, const Size(1440, 900));
+      final double desktopWidth = tester.getSize(
+        find.byKey(const Key('app-side-nav')),
+      ).width;
+
+      expect(
+        desktopWidth,
+        greaterThan(tabletWidth),
+        reason: 'the extended rail must be roomier than the collapsed one',
+      );
     });
 
     testWidgets('the shell content stays reachable at every breakpoint', (

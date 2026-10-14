@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'motion.dart';
 
-/// Placeholder shown while content loads. Uses a subtle shimmer that respects
-/// the user's reduced-motion preference.
-class SkeletonBox extends StatefulWidget {
+/// Placeholder shown while content loads. Delegates to [ShimmerBox], which
+/// sweeps a highlight across the box — a pulsing block reads as frozen, a
+/// sweeping one reads as work in progress. Respects the user's reduced-motion
+/// preference.
+class SkeletonBox extends StatelessWidget {
   const SkeletonBox({
     super.key,
     this.width,
@@ -35,47 +38,11 @@ class SkeletonBox extends StatefulWidget {
   final double borderRadius;
 
   @override
-  State<SkeletonBox> createState() => _SkeletonBoxState();
-}
-
-class _SkeletonBoxState extends State<SkeletonBox>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppDurations.slow,
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bool reduceMotion =
-        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
-    final ThemeData theme = Theme.of(context);
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (BuildContext context, Widget? child) {
-        final double t = reduceMotion ? 0.5 : _controller.value;
-        return Container(
-          width: widget.width,
-          height: widget.height,
-          decoration: BoxDecoration(
-            color: Color.lerp(
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-              t,
-            ),
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-          ),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => ShimmerBox(
+    width: width,
+    height: height,
+    borderRadius: borderRadius,
+  );
 }
 
 class SkeletonCard extends StatelessWidget {
@@ -156,17 +123,30 @@ class EmptyState extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
+              // A flat 10%-opacity circle read as a disabled placeholder.
+              // The gradient makes the empty state feel designed rather than
+              // like something failed to load.
               Container(
-                width: compact ? 56 : 72,
-                height: compact ? 56 : 72,
+                width: compact ? 56 : 76,
+                height: compact ? 56 : 76,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.10),
+                  gradient: AppGradients.linear(
+                    colors: AppGradientsTheme.of(context).brand,
+                  ),
                   shape: BoxShape.circle,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color:
+                          theme.colorScheme.primary.withValues(alpha: 0.30),
+                      blurRadius: compact ? 14 : 22,
+                      offset: Offset(0, compact ? 6 : 10),
+                    ),
+                  ],
                 ),
                 child: Icon(
                   icon,
-                  size: compact ? 26 : 32,
-                  color: theme.colorScheme.primary,
+                  size: compact ? 26 : 34,
+                  color: Colors.white,
                 ),
               ),
               SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xl),
@@ -367,7 +347,11 @@ class SectionHeader extends StatelessWidget {
 }
 
 /// Card wrapper that adds consistent padding and an optional onTap affordance.
-class AppCard extends StatelessWidget {
+///
+/// Tappable cards lift and cast a brand-tinted shadow while a pointer is over
+/// them, and dip slightly on press. On a touch screen only the press applies,
+/// because there is no hover state to detect.
+class AppCard extends StatefulWidget {
   const AppCard({
     super.key,
     required this.child,
@@ -384,31 +368,65 @@ class AppCard extends StatelessWidget {
   final bool selected;
 
   @override
+  State<AppCard> createState() => _AppCardState();
+}
+
+class _AppCardState extends State<AppCard> {
+  bool _hovered = false;
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Widget content = Padding(padding: padding, child: child);
+    final Widget content = Padding(padding: widget.padding, child: widget.child);
 
-    return Padding(
-      padding: margin ?? EdgeInsets.zero,
-      child: Card(
-        shape: RoundedRectangleBorder(
+    // A card only lifts when there is a pointer that can hover. On touch this
+    // would stick on after a tap, so the whole effect is gated off.
+    final bool lift =
+        widget.onTap != null && _hovered && AppBreakpoints.isPointerHovering(context);
+
+    final Widget card = Transform.scale(
+      scale: widget.selected
+          ? 1.0
+          : (_pressed ? 0.985 : (lift ? 1.008 : 1.0)),
+      child: AnimatedContainer(
+        duration: AppDurations.normal,
+        curve: AppCurves.standard,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: BorderSide(
-            color: selected
+          border: Border.all(
+            color: widget.selected
                 ? theme.colorScheme.primary
-                : theme.colorScheme.outline,
-            width: selected ? 1.6 : 1,
+                : theme.colorScheme.outlineVariant,
+            width: widget.selected ? 1.6 : 1,
           ),
+          boxShadow: lift ? AppShadow.raised : AppShadow.sm,
         ),
-        child: onTap == null
-            ? content
-            : InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: content,
-              ),
+        child: content,
       ),
     );
+
+    final Widget inner = widget.onTap == null
+        ? card
+        : MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: GestureDetector(
+              onTapDown: widget.onTap == null
+                  ? null
+                  : (_) => setState(() => _pressed = true),
+              onTapUp: widget.onTap == null
+                  ? null
+                  : (_) => setState(() => _pressed = false),
+              onTapCancel: widget.onTap == null
+                  ? null
+                  : () => setState(() => _pressed = false),
+              child: card,
+            ),
+          );
+
+    return Padding(padding: widget.margin ?? EdgeInsets.zero, child: inner);
   }
 }
 
@@ -437,26 +455,41 @@ class BudgetProgressBar extends StatelessWidget {
         ? AppColors.warning
         : theme.colorScheme.primary;
 
+    // The value eases to its target rather than snapping. A budget bar that
+    // jumps from empty to 62% is a number; one that grows into it is a signal,
+    // which is the whole point of putting it on the dashboard.
+    //
+    // Still a LinearProgressIndicator underneath, because it is what carries
+    // the progress semantics — the animation is layered on top rather than
+    // replacing it.
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: LinearProgressIndicator(
-        value: value.clamp(0.0, 1.0),
-        minHeight: height,
-        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-        valueColor: AlwaysStoppedAnimation<Color>(color),
-        // A progress node's semanticsValue is parsed as a NUMBER. Passing prose
-        // here ("62 percent of the budget used") threw
-        // "Progress bar value, minValue, and maxValue must be valid numbers"
-        // for anyone with a screen reader attached. The words belong in the
-        // label; the value must stay numeric.
-        semanticsLabel: over
-            ? 'Budget used, over budget'
-            : 'Budget used',
-        // Clamped to 0-100: a semantics value outside that range throws
-        // "Progress bar value must be between minValue and maxValue", so an
-        // overspent trip crashed the semantics tree. The overspend itself is
-        // announced by the label, not by a number above 100.
-        semanticsValue: '${(value.clamp(0.0, 1.0) * 100).round()}',
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: value.clamp(0.0, 1.0)),
+        duration: reduceMotionOf(context)
+            ? Duration.zero
+            : AppDurations.emphasis,
+        curve: AppCurves.emphasis,
+        builder:
+            (BuildContext context, double v, Widget? _) => LinearProgressIndicator(
+              value: v,
+              minHeight: height,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              // A progress node's semanticsValue is parsed as a NUMBER.
+              // Passing prose here ("62 percent of the budget used") threw
+              // "Progress bar value, minValue, and maxValue must be valid
+              // numbers" for anyone with a screen reader attached. The words
+              // belong in the label; the value must stay numeric.
+              semanticsLabel: over
+                  ? 'Budget used, over budget'
+                  : 'Budget used',
+              // Clamped to 0-100: a semantics value outside that range throws
+              // "Progress bar value must be between minValue and maxValue", so
+              // an overspent trip crashed the semantics tree. The overspend is
+              // announced by the label, not by a number above 100.
+              semanticsValue: '${(v * 100).round()}',
+            ),
       ),
     );
   }

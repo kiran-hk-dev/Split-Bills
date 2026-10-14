@@ -12,6 +12,7 @@ import '../../data/models/reference.dart';
 import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 
 class DestinationDetailPage extends ConsumerStatefulWidget {
   const DestinationDetailPage({super.key, required this.destinationId});
@@ -71,17 +72,11 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
         if (d.imageUrl != null)
           AspectRatio(
             aspectRatio: 16 / 9,
-            child: Image.network(
-              d.imageUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                color: theme.colorScheme.primary.withValues(alpha: 0.08),
-              ),
-              loadingBuilder: (
-                BuildContext c,
-                Widget child,
-                ImageChunkEvent? p,
-              ) => p == null ? child : const SkeletonBox(),
+            // Was an `errorBuilder` returning a flat container with nothing in
+            // it, so a broken image rendered as a blank tinted band.
+            child: NetworkArtwork(
+              url: d.imageUrl!,
+              fallbackIcon: Icons.landscape_outlined,
             ),
           ),
         Padding(
@@ -225,7 +220,13 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
               ),
 
               const SizedBox(height: AppSpacing.xl),
-              const _DestinationSafetyCard(countryCode: '', name: ''),
+              // Was hardcoded to empty strings, which made the card return
+              // SizedBox.shrink() every time — the official safety section was
+              // permanently dead code.
+              _DestinationSafetyCard(
+                countryCode: d.countryCode ?? '',
+                name: d.country ?? d.name,
+              ),
               const SizedBox(height: AppSpacing.huge),
             ],
           ),

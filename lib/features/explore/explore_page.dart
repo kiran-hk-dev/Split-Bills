@@ -8,6 +8,7 @@ import '../../router/app_shell.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 const List<String> kDestinationCategories = <String>[
   'city',
@@ -61,76 +62,8 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         },
         child: CustomScrollView(
           slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Column(
-                  children: <Widget>[
-                    PageHeader(
-                      title: 'Explore',
-                      subtitle: 'Destinations, ideas and saved places',
-                      actions: <Widget>[
-                        IconButton(
-                          onPressed: () =>
-                              setState(() => _showSaved = !_showSaved),
-                          icon: Icon(
-                            _showSaved
-                                ? Icons.explore_outlined
-                                : Icons.bookmark_outline,
-                          ),
-                          tooltip: _showSaved
-                              ? 'Browse destinations'
-                              : 'Saved destinations',
-                        ),
-                        const NotificationBell(),
-                      ],
-                    ),
-                    if (!_showSaved) ...<Widget>[
-                      DebouncedSearchField(
-                        hint: 'Search a city, country or attraction',
-                        initialValue: _query,
-                        onChanged: (String v) => setState(() => _query = v),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      SizedBox(
-                        height: 40,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: kDestinationCategories.length + 1,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(width: AppSpacing.sm),
-                          itemBuilder: (BuildContext context, int i) {
-                            if (i == 0) {
-                              return ChoiceChip(
-                                selected: _category == null,
-                                onSelected: (_) =>
-                                    setState(() => _category = null),
-                                label: const Text('All'),
-                              );
-                            }
-                            final String cat = kDestinationCategories[i - 1];
-                            return ChoiceChip(
-                              selected: _category == cat,
-                              onSelected: (_) => setState(
-                                () => _category = _category == cat ? null : cat,
-                              ),
-                              label: Text(cat),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(child: _bodyColumn(async)),
+            SliverToBoxAdapter(child: _header()),
+            ..._bodySlivers(async),
             const SliverToBoxAdapter(child: SizedBox(height: 96)),
           ],
         ),
@@ -138,63 +71,175 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
     );
   }
 
-  Widget _bodyColumn(AsyncValue<List<Destination>> async) {
-    return Column(children: <Widget>[Expanded(child: _buildBody(async))]);
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.lg,
+        AppSpacing.sm,
+      ),
+      child: Column(
+        children: <Widget>[
+          PageHeader(
+            title: 'Explore',
+            subtitle: 'Destinations, ideas and saved places',
+            actions: <Widget>[
+              IconButton(
+                onPressed: () => setState(() => _showSaved = !_showSaved),
+                icon: AnimatedSwitcher(
+                  duration: AppDurations.normal,
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) =>
+                          ScaleTransition(
+                            scale: animation,
+                            child: FadeTransition(opacity: animation, child: child),
+                          ),
+                  child: Icon(
+                    _showSaved ? Icons.explore_outlined : Icons.bookmark_outline,
+                    key: ValueKey<bool>(_showSaved),
+                  ),
+                ),
+                tooltip: _showSaved
+                    ? 'Browse destinations'
+                    : 'Saved destinations',
+              ),
+              const NotificationBell(),
+            ],
+          ),
+          if (!_showSaved) ...<Widget>[
+            DebouncedSearchField(
+              hint: 'Search a city, country or attraction',
+              initialValue: _query,
+              onChanged: (String v) => setState(() => _query = v),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: kDestinationCategories.length + 1,
+                separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+                itemBuilder: (BuildContext context, int i) {
+                  if (i == 0) {
+                    return ChoiceChip(
+                      selected: _category == null,
+                      onSelected: (_) => setState(() => _category = null),
+                      label: const Text('All'),
+                    );
+                  }
+                  final String cat = kDestinationCategories[i - 1];
+                  return ChoiceChip(
+                    selected: _category == cat,
+                    onSelected: (_) => setState(
+                      () => _category = _category == cat ? null : cat,
+                    ),
+                    label: Text(cat),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ],
+      ),
+    );
   }
 
-  Widget _buildBody(AsyncValue<List<Destination>> async) {
+  /// Height given to the loading, empty and error states so their centred
+  /// content sits in the middle of the viewport rather than pinned to the top
+  /// edge of an unbounded sliver.
+  static const double _stateHeight = 420;
+
+  /// The body, as slivers.
+  ///
+  /// This used to be a single `SliverToBoxAdapter` wrapping a Column that in
+  /// turn wrapped the body in an `Expanded`. A `SliverToBoxAdapter` hands its
+  /// child unbounded height, so the flex could never resolve and the whole
+  /// Explore tab threw "RenderFlex children have non-zero flex but incoming
+  /// height constraints are unbounded" — it could not render at all.
+  ///
+  /// The inner layer was a full `ListView` nested inside the outer sliver's
+  /// scroll view: two scrollables competing for one gesture, and no lazy
+  /// building. Returning real slivers fixes both.
+  List<Widget> _bodySlivers(AsyncValue<List<Destination>> async) {
     if (_showSaved) {
-      // No Expanded here. This Column is a direct child of SliverToBoxAdapter,
-      // so its height is unbounded and a flex child throws
-      // "RenderFlex children have non-zero flex but incoming height
-      // constraints are unbounded". The sliver scrolls, so the list simply
-      // takes the height it needs.
-      return const Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          SectionHeader(
+      // Deliberately no flex in this branch. The Column shrink-wraps and the
+      // enclosing sliver list already scrolls.
+      return const <Widget>[
+        SliverToBoxAdapter(
+          child: SectionHeader(
             title: 'Saved destinations',
             padding: EdgeInsets.only(bottom: AppSpacing.md),
           ),
-          _SavedList(),
-        ],
-      );
+        ),
+        SliverToBoxAdapter(child: _SavedList()),
+      ];
     }
 
     return async.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        child: SkeletonCard(lines: 3),
-      ),
-      error: (Object err, StackTrace _) => ErrorStateView(
-        message: 'Could not load destinations.',
-        onRetry: () => ref.invalidate(destinationResultsProvider),
-      ),
+      loading: () => const <Widget>[
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: SkeletonCard(lines: 3),
+          ),
+        ),
+      ],
+      error: (Object err, StackTrace _) => <Widget>[
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: _stateHeight,
+            child: ErrorStateView(
+              message: 'Could not load destinations.',
+              onRetry: () => ref.invalidate(destinationResultsProvider),
+            ),
+          ),
+        ),
+      ],
       data: (List<Destination> results) {
         if (results.isEmpty) {
-          return EmptyState(
-            icon: Icons.travel_explore,
-            title: 'No destinations match',
-            message: _query.isEmpty
-                ? 'Nothing is listed under that category yet.'
-                : 'Nothing found for that search. Try a country or city name.',
-          );
+          return <Widget>[
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: _stateHeight,
+                child: EmptyState(
+                  icon: Icons.travel_explore,
+                  title: 'No destinations match',
+                  message: _query.isEmpty
+                      ? 'Nothing is listed under that category yet.'
+                      : 'Nothing found for that search. Try a country or city name.',
+                ),
+              ),
+            ),
+          ];
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.lg,
+
+        return <Widget>[
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            sliver: SliverList.separated(
+              itemCount: results.length,
+              separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+              itemBuilder: (BuildContext context, int i) => FadeSlideIn(
+                // Bounded, so scrolling deep into a long result list never
+                // means waiting on a delay that keeps growing.
+                delay: Duration(
+                  milliseconds: staggerDelayFor(i, maxStaggered: 10),
+                ),
+                child: _DestinationCard(
+                  destination: results[i],
+                  onTap: () => context.push('/explore/${results[i].id}'),
+                ),
+              ),
+            ),
           ),
-          itemCount: results.length,
-          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-          itemBuilder: (BuildContext context, int i) => _DestinationCard(
-            destination: results[i],
-            onTap: () => context.push('/explore/${results[i].id}'),
-          ),
-        );
+        ];
       },
     );
   }
@@ -217,25 +262,20 @@ class _DestinationCard extends StatelessWidget {
         children: <Widget>[
           if (destination.imageUrl != null)
             ClipRRect(
+              // Top corners only: this image sits flush against the top edge
+              // of the card, whose own corners are rounded above it.
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadius.lg),
               ),
               child: AspectRatio(
                 aspectRatio: 16 / 7,
-                child: Image.network(
-                  destination.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    height: 100,
-                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.landscape_outlined),
-                  ),
-                  loadingBuilder: (
-                    BuildContext c,
-                    Widget child,
-                    ImageChunkEvent? p,
-                  ) => p == null ? child : const SkeletonBox(),
+                // The old errorBuilder returned a bare tinted rectangle with a
+                // small icon, which looked identical to an image that had not
+                // loaded yet. NetworkArtwork draws a brand gradient instead, so
+                // a broken URL is obviously artwork rather than a gap.
+                child: NetworkArtwork(
+                  url: destination.imageUrl!,
+                  fallbackIcon: Icons.landscape_outlined,
                 ),
               ),
             ),

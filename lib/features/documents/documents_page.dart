@@ -29,6 +29,28 @@ class DocumentsPage extends ConsumerStatefulWidget {
 class _DocumentsPageState extends ConsumerState<DocumentsPage> {
   String? _tripFilter;
 
+  /// Loads the document list.
+  ///
+  /// `tripRepositoryProvider` builds its repository from
+  /// `SupabaseService.instance`, which throws whenever the client is not
+  /// initialised — demo mode, and the window before the session resolves.
+  /// Reading it straight from `build` therefore took the whole screen down with
+  /// an unhandled exception rather than showing anything. Turning the failure
+  /// into an async error lets the FutureBuilder render an explanatory state.
+  Future<List<TravelDocument>> _load() async {
+    try {
+      return await ref
+          .read(tripRepositoryProvider)
+          .documents
+          .list(tripId: _tripFilter);
+    } on StateError {
+      throw const RepositoryException(
+        'Documents need a signed-in session and a connection. They are not '
+        'available in demo mode.',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,15 +81,18 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
           const SizedBox(height: AppSpacing.md),
           Expanded(
             child: FutureBuilder<List<TravelDocument>>(
-              future: ref
-                  .watch(tripRepositoryProvider)
-                  .documents
-                  .list(tripId: _tripFilter),
+              future: _load(),
               builder:
                   (
                     BuildContext context,
                     AsyncSnapshot<List<TravelDocument>> snapshot,
                   ) {
+                    if (snapshot.hasError) {
+                      return ErrorStateView(
+                        message: '${snapshot.error}',
+                        onRetry: () => setState(() {}),
+                      );
+                    }
                     if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }

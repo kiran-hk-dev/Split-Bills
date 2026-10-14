@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/money/currency.dart';
@@ -13,6 +14,7 @@ import '../../router/app_shell.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/trip_cover.dart';
 
 /// Per-trip figures used by the dashboard cards.
@@ -112,28 +114,37 @@ class DashboardPage extends ConsumerWidget {
         ref.invalidate(tripsProvider);
         ref.invalidate(tripFinanceProvider);
         ref.invalidate(profileProvider);
-        await ref
-            .read(tripsProvider.future)
-            .catchError((Object _) => throw _Swallow());
+        // Swallow the error here rather than rethrowing it. The previous
+        // `catchError((Object _) => throw _Swallow())` did the opposite of
+        // what its name claimed, so every pull-to-refresh reported a failure
+        // even when it succeeded. The error is still surfaced properly by the
+        // AsyncValue the body renders from.
+        await ref.read(tripsProvider.future).then<void>(
+          (_) {},
+          onError: (Object _, StackTrace _) {},
+        );
       },
       child: CustomScrollView(
         slivers: <Widget>[
-          SliverToBoxAdapter(
-            child: PageHeader(
-              title: _greeting(profileAsync.value),
-              subtitle: DateTime.now().toIso8601String().substring(0, 10),
-              avatar: UserAvatar(
-                initials: profileAsync.value?.initials ?? '?',
-                size: 38,
-                onTap: () => context.push('/profile'),
+            SliverToBoxAdapter(
+              child: PageHeader(
+                title: _greeting(profileAsync.value),
+                subtitle: DateFormat('EEEE d MMMM').format(DateTime.now()),
+                avatar: UserAvatar(
+                  initials: profileAsync.value?.initials ?? '?',
+                  size: 40,
+                  onTap: () => context.push('/profile'),
+                ),
+                actions: const <Widget>[NotificationBell()],
               ),
-              actions: const <Widget>[NotificationBell()],
             ),
-          ),
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: _QuickActions(tripsAsync: tripsAsync),
+            child: FadeSlideIn(
+              delay: const Duration(milliseconds: 60),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _QuickActions(tripsAsync: tripsAsync),
+              ),
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
@@ -152,7 +163,10 @@ class DashboardPage extends ConsumerWidget {
           // to slivers. Spreading them straight into `slivers:` throws
           // "A RenderViewport expected a child of type RenderSliver" as soon as
           // the corresponding branch is taken.
-          ..._asSlivers(_buildNextTrip(context, ref, tripsAsync, financeAsync)),
+          ..._asSlivers(
+            _buildNextTrip(context, ref, tripsAsync, financeAsync),
+            startIndex: 2,
+          ),
 
           // ---- Money ----------------------------------------------------
           SliverToBoxAdapter(
@@ -165,13 +179,13 @@ class DashboardPage extends ConsumerWidget {
               ),
             ),
           ),
-          ..._asSlivers(_buildMoney(context, financeAsync)),
+          ..._asSlivers(_buildMoney(context, financeAsync), startIndex: 3),
 
           // ---- Activity -------------------------------------------------
           const SliverToBoxAdapter(
             child: SectionHeader(title: 'Recent activity'),
           ),
-          ..._asSlivers(_buildActivity(context, ref, tripsAsync)),
+          ..._asSlivers(_buildActivity(context, ref, tripsAsync), startIndex: 4),
 
           const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.huge)),
         ],
@@ -180,14 +194,32 @@ class DashboardPage extends ConsumerWidget {
   }
 
   /// Wraps box widgets from the section helpers so they can live in a
-  /// `CustomScrollView`'s sliver list.
-  static List<Widget> _asSlivers(List<Widget> children) => <Widget>[
-    for (final Widget child in children)
-      if (child is SliverToBoxAdapter)
-        child
-      else
-        SliverToBoxAdapter(child: child),
+  /// `CustomScrollView`'s sliver list, and cascades each one in.
+  ///
+  /// `startIndex` lets a later section continue the stagger rather than
+  /// restarting it, so the whole page cascades top to bottom as one sequence.
+  static List<Widget> _asSlivers(
+    List<Widget> children, {
+    int startIndex = 0,
+  }) => <Widget>[
+    for (int i = 0; i < children.length; i++)
+      SliverToBoxAdapter(
+        child: FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(startIndex + i)),
+          child: _unwrapSliver(children[i]),
+        ),
+      ),
   ];
+
+  /// Returns the box child of a sliver adapter, or the widget itself.
+  ///
+  /// The section helpers return `SliverToBoxAdapter`s because that is what
+  /// they used to be spread directly into the sliver list. Unwrapping them
+  /// here lets a single helper serve both cases.
+  static Widget _unwrapSliver(Widget child) {
+    if (child is SliverToBoxAdapter) return child.child!;
+    return child;
+  }
 
   String _greeting(Profile? profile) {
     final int hour = DateTime.now().hour;
@@ -388,10 +420,6 @@ class DashboardPage extends ConsumerWidget {
   }
 }
 
-class _Swallow implements Exception {
-  const _Swallow();
-}
-
 class _QuickActions extends StatelessWidget {
   const _QuickActions({required this.tripsAsync});
 
@@ -585,16 +613,22 @@ class _BalanceRow extends StatelessWidget {
                   label: 'Owed to you',
                   amount: summary.owedToMeMinor,
                   currency: summary.currency,
-                  color: AppColors.positive,
+                  color: AppColors.positiveFor(theme.brightness),
                 ),
               ),
-              Container(width: 1, height: 34, color: theme.colorScheme.outline),
+              Container(
+                width: 1,
+                height: 34,
+                color: theme.colorScheme.outlineVariant,
+              ),
               Expanded(
                 child: _MoneyFigure(
                   label: 'You owe',
                   amount: summary.iOweMinor,
                   currency: summary.currency,
-                  color: summary.iOweMinor > 0 ? AppColors.danger : null,
+                  color: summary.iOweMinor > 0
+                      ? AppColors.dangerFor(theme.brightness)
+                      : null,
                 ),
               ),
             ],
@@ -604,7 +638,7 @@ class _BalanceRow extends StatelessWidget {
             Text(
               'Everyone is settled up on this trip.',
               style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.positive,
+                color: AppColors.positiveFor(theme.brightness),
               ),
             ),
           ],
@@ -635,9 +669,13 @@ class _MoneyFigure extends StatelessWidget {
       children: <Widget>[
         Text(label, style: theme.textTheme.bodySmall),
         const SizedBox(height: 2),
-        Text(
-          Money(amount, currency).format(),
+        // Counts up rather than swapping. These figures sit side by side and
+        // a silent change is easy to miss when you are scanning for how much
+        // you owe.
+        AnimatedNumber(
+          value: amount.toDouble(),
           style: theme.textTheme.titleMedium?.copyWith(color: color),
+          builder: (double v) => Money(v.round(), currency).format(),
         ),
       ],
     );

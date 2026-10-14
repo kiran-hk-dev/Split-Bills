@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Branded sign-in / sign-up container.
 class AuthShell extends StatelessWidget {
@@ -82,22 +83,31 @@ class _Brand extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     return Column(
       children: <Widget>[
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+        FadeSlideIn(
+          offset: const Offset(0, 0.10),
+          child: Image.asset(
+            'assets/images/brand_logo.png',
+            width: 64,
+            height: 64,
+            filterQuality: FilterQuality.medium,
+            errorBuilder:
+                (BuildContext context, Object error, _) =>
+                    const BrandMark(size: 64),
           ),
-          child: const Icon(Icons.explore, color: Colors.white, size: 28),
         ),
         const SizedBox(height: AppSpacing.lg),
-        Text('TripSplit World', style: theme.textTheme.headlineSmall),
+        FadeSlideIn(
+          delay: const Duration(milliseconds: 90),
+          child: Text('TripSplit World', style: theme.textTheme.headlineSmall),
+        ),
         const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Plan it, budget it, split it, and get home safely.',
-          textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium,
+        FadeSlideIn(
+          delay: const Duration(milliseconds: 160),
+          child: Text(
+            'Plan it, budget it, split it, and get home safely.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
         ),
       ],
     );
@@ -662,24 +672,27 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   int _page = 0;
   bool _saving = false;
 
-  static const List<({String title, String body, IconData icon})> _slides =
-      <({String title, String body, IconData icon})>[
-        (
-          title: 'Travel budget that adds up',
-          body: 'Plan a budget, log what you actually spend, and see the difference in real time. Every calculation uses exact currency units, so a rounding difference never creeps in.',
-          icon: Icons.account_balance_wallet_outlined,
-        ),
-        (
-          title: 'Split bills without the awkward maths',
-          body: 'Equal, custom, percentage or weighted splits — including expenses paid in a different currency. Balances recalculate whenever an expense changes.',
-          icon: Icons.pie_chart_outline,
-        ),
-        (
-          title: 'Know what to do if something goes wrong',
-          body: 'Downloadable emergency guides, verified local contacts and a step-by-step lost-passport plan that works offline. Sources and verification dates are always shown.',
-          icon: Icons.health_and_safety_outlined,
-        ),
-      ];
+  static const List<({String title, String body, IconData icon, String image})>
+  _slides = <({String title, String body, IconData icon, String image})>[
+    (
+      title: 'Travel budget that adds up',
+      body: 'Plan a budget, log what you actually spend, and see the difference in real time. Every calculation uses exact currency units, so a rounding difference never creeps in.',
+      icon: Icons.account_balance_wallet_outlined,
+      image: 'assets/onboarding/onboarding_split.jpg',
+    ),
+    (
+      title: 'Split bills without the awkward maths',
+      body: 'Equal, custom, percentage or weighted splits - including expenses paid in a different currency. Balances recalculate whenever an expense changes.',
+      icon: Icons.pie_chart_outline,
+      image: 'assets/onboarding/onboarding_travel.png',
+    ),
+    (
+      title: 'Know what to do if something goes wrong',
+      body: 'Downloadable emergency guides, verified local contacts and a step-by-step lost-passport plan that works offline. Sources and verification dates are always shown.',
+      icon: Icons.health_and_safety_outlined,
+      image: 'assets/onboarding/onboarding_safe.png',
+    ),
+  ];
 
   @override
   void dispose() {
@@ -727,44 +740,47 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 onPageChanged: (int i) => setState(() => _page = i),
                 itemCount: _slides.length,
                 itemBuilder: (BuildContext context, int i) {
-                  final ({IconData icon, String body, String title}) slide =
-                      _slides[i];
+                  final ({IconData icon, String body, String title, String image})
+                  slide = _slides[i];
                   return Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xxl,
-                      vertical: AppSpacing.xl,
+                      vertical: AppSpacing.lg,
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.12,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AppBreakpoints.maxFormWidth,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          // Illustration with a graceful path back to the
+                          // icon badge, so a missing asset degrades to the old
+                          // look rather than an empty gap.
+                          Flexible(
+                            child: Image.asset(
+                              slide.image,
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.medium,
+                              errorBuilder:
+                                  (BuildContext context, Object error, _) =>
+                                      _SlideIconBadge(icon: slide.icon),
                             ),
-                            shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            slide.icon,
-                            size: 38,
-                            color: theme.colorScheme.primary,
+                          const SizedBox(height: AppSpacing.xxl),
+                          Text(
+                            slide.title,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.headlineSmall,
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.xxl),
-                        Text(
-                          slide.title,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          slide.body,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyLarge,
-                        ),
-                      ],
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            slide.body,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -814,6 +830,30 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
           ],
         ),
       ),
+    );
+  }
+}
+/// Fallback badge for an onboarding slide whose illustration is missing.
+///
+/// Kept so the slide still reads as designed if an asset ever fails to load,
+/// rather than collapsing to an empty box above the headline.
+class _SlideIconBadge extends StatelessWidget {
+  const _SlideIconBadge({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        gradient: AppGradients.linear(
+          colors: AppGradientsTheme.of(context).brand,
+        ),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, size: 42, color: Colors.white),
     );
   }
 }

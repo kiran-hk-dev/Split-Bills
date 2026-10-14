@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'motion.dart';
 
 /// Cover artwork for a trip.
 ///
@@ -13,8 +14,9 @@ import '../../core/theme/app_theme.dart';
 ///
 ///  * Every palette is dark and desaturated, so white overlay text is always
 ///    legible and the set reads as one family.
-///  * Hues are drawn from a narrow band around the brand colours (sea, teal,
-///    slate, indigo, pine, plum, sand, charcoal) rather than the full wheel.
+///  * Hues are drawn from a narrow band around the brand ramp — indigo,
+///    violet, teal and cyan, plus a slate and a plum to break it up — rather
+///    than the full wheel.
 ///  * A soft radial highlight and a large, low-opacity destination mark give
 ///    depth and per-trip identity without shouting.
 ///  * The palette index uses a finalising mix step, so adjacent-looking seeds
@@ -29,6 +31,7 @@ class TripCover extends StatelessWidget {
     this.leadingEmoji,
     this.borderRadius,
     this.showScrim = true,
+    this.heroTag,
   });
 
   /// A photo for the trip, if the user has set one.
@@ -46,17 +49,21 @@ class TripCover extends StatelessWidget {
   /// Darkens the lower half so overlaid text stays readable over any artwork.
   final bool showScrim;
 
-  /// Dark, desaturated duotones. All sit in a similar lightness range on
-  /// purpose: that is what keeps white text readable and the set cohesive.
+  /// When set, the cover flies from the list card into the detail page.
+  final Object? heroTag;
+
+  /// Dark, desaturated duotones drawn from the brand ramp. All sit in a
+  /// similar lightness range on purpose: that is what keeps white text
+  /// readable and the set cohesive.
   static const List<List<Color>> _palettes = <List<Color>>[
-    <Color>[Color(0xFF0B3C5D), Color(0xFF14506E)], // deep sea
-    <Color>[Color(0xFF0C4A4A), Color(0xFF14625F)], // teal
-    <Color>[Color(0xFF2C3A4F), Color(0xFF3D5068)], // slate
-    <Color>[Color(0xFF243A6B), Color(0xFF2F4A85)], // indigo
-    <Color>[Color(0xFF1B4332), Color(0xFF2D6A4F)], // pine
-    <Color>[Color(0xFF3D2C4A), Color(0xFF56406B)], // plum
-    <Color>[Color(0xFF4A3B2A), Color(0xFF6B5540)], // sand
-    <Color>[Color(0xFF33343A), Color(0xFF4A4C55)], // charcoal
+    <Color>[Color(0xFF312E81), Color(0xFF4338CA)], // indigo
+    <Color>[Color(0xFF4C1D95), Color(0xFF6D28D9)], // violet
+    <Color>[Color(0xFF0F4C46), Color(0xFF0D7368)], // teal
+    <Color>[Color(0xFF0C4A6E), Color(0xFF0E7490)], // cyan
+    <Color>[Color(0xFF1E3A8A), Color(0xFF1D4ED8)], // royal
+    <Color>[Color(0xFF4A2358), Color(0xFF6B3080)], // plum
+    <Color>[Color(0xFF2B3350), Color(0xFF3C4668)], // slate
+    <Color>[Color(0xFF064E3B), Color(0xFF047857)], // pine
   ];
 
   /// Deterministic palette index.
@@ -116,22 +123,17 @@ class TripCover extends StatelessWidget {
 
     final String? url = imageUrl;
     if (url != null && url.isNotEmpty) {
-      art = Image.network(
-        url,
-        fit: BoxFit.cover,
-        // The duotone stays visible while loading and if the network fails, so
-        // a trip never renders as an empty hole.
-        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? p) =>
-            p == null ? child : art,
-        errorBuilder: (_, _, _) => art,
-      );
+      // CrossfadeImage renders nothing at all if the URL fails, so the duotone
+      // underneath simply stays. The previous Image.network painted over it
+      // with an error frame the moment it gave up.
+      art = CrossfadeImage(url: url, fit: BoxFit.cover);
     }
 
     final bool hasOverlay =
         (title != null && title!.isNotEmpty) ||
         (leadingEmoji != null && leadingEmoji!.isNotEmpty);
 
-    return ClipRRect(
+    final Widget cover = ClipRRect(
       borderRadius: radius,
       child: Stack(
         fit: StackFit.expand,
@@ -252,6 +254,12 @@ class TripCover extends StatelessWidget {
         ],
       ),
     );
+
+    // Flies the artwork from the trip card into the detail page, so tapping a
+    // trip reads as opening that trip rather than swapping one screen for
+    // another.
+    if (heroTag == null) return cover;
+    return Hero(tag: heroTag!, child: cover);
   }
 }
 
