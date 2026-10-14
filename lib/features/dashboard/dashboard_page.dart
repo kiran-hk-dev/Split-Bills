@@ -109,34 +109,41 @@ class DashboardPage extends ConsumerWidget {
     );
     final AsyncValue<Profile?> profileAsync = ref.watch(profileProvider);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(tripsProvider);
-        ref.invalidate(tripFinanceProvider);
-        ref.invalidate(profileProvider);
-        // Swallow the error here rather than rethrowing it. The previous
-        // `catchError((Object _) => throw _Swallow())` did the opposite of
-        // what its name claimed, so every pull-to-refresh reported a failure
-        // even when it succeeded. The error is still surfaced properly by the
-        // AsyncValue the body renders from.
-        await ref.read(tripsProvider.future).then<void>(
-          (_) {},
-          onError: (Object _, StackTrace _) {},
-        );
-      },
-      child: CustomScrollView(
-        slivers: <Widget>[
-            SliverToBoxAdapter(
-              child: PageHeader(
-                title: _greeting(profileAsync.value),
-                subtitle: DateFormat('EEEE d MMMM').format(DateTime.now()),
-                avatar: UserAvatar(
-                  initials: profileAsync.value?.initials ?? '?',
-                  size: 40,
-                  onTap: () => context.push('/profile'),
+    // PageBody carries the 1080px width cap that stops this dashboard
+    // stretching across a desktop monitor. padding is zero because every
+    // section below already applies its own AppSpacing.lg gutter, and stacking
+    // both would double it on a phone.
+    return PageBody(
+      padding: EdgeInsets.zero,
+      child: ScrollAwareShell(
+        child: RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(tripsProvider);
+            ref.invalidate(tripFinanceProvider);
+            ref.invalidate(profileProvider);
+            // Swallow the error here rather than rethrowing it. The previous
+            // `catchError((Object _) => throw _Swallow())` did the opposite
+            // of what its name claimed, so every pull-to-refresh reported a
+            // failure even when it succeeded. The error is still surfaced
+            // properly by the AsyncValue the body renders from.
+            await ref.read(tripsProvider.future).then<void>(
+              (_) {},
+              onError: (Object _, StackTrace _) {},
+            );
+          },
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverToBoxAdapter(
+                child: PageHeader(
+                  title: _greeting(profileAsync.value),
+                  subtitle: DateFormat('EEEE d MMMM').format(DateTime.now()),
+                  avatar: UserAvatar(
+                    initials: profileAsync.value?.initials ?? '?',
+                    size: 40,
+                    onTap: () => context.push('/profile'),
+                  ),
+                  actions: const <Widget>[NotificationBell()],
                 ),
-                actions: const <Widget>[NotificationBell()],
-              ),
             ),
           SliverToBoxAdapter(
             child: FadeSlideIn(
@@ -187,8 +194,13 @@ class DashboardPage extends ConsumerWidget {
           ),
           ..._asSlivers(_buildActivity(context, ref, tripsAsync), startIndex: 4),
 
+          // Clears the phone navigation bar. AppShell's Scaffold already
+          // reserves the bar's height, but the shell also places a floating
+          // action button with centreFloat, which does overlap the body.
           const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.huge)),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

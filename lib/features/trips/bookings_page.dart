@@ -11,6 +11,7 @@ import '../../data/models/trip.dart';
 import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/form_fields.dart';
 
 /// Organises confirmed bookings. It does NOT make reservations — it records
@@ -30,8 +31,8 @@ class _BookingsPageState extends ConsumerState<BookingsPage> {
     final AsyncValue<Trip?> tripAsync = ref.watch(currentTripProvider);
     final Trip? trip = tripAsync.value;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Bookings')),
+    return PageScaffold(
+      title: 'Bookings',
       floatingActionButton: trip != null && trip.myRole.canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _edit(context, null),
@@ -39,66 +40,89 @@ class _BookingsPageState extends ConsumerState<BookingsPage> {
               label: const Text('Add booking'),
             )
           : null,
-      body: Column(
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              0,
+      body: PageBody(
+        // Zero gutter: the banner below applies its own, and stacking both
+        // would double it on a phone. PageBody still caps the width, which is
+        // what stops this stretching across a desktop monitor. It passes
+        // bounded height through, so the Expanded below still resolves.
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.md,
+                AppSpacing.lg,
+                0,
+              ),
+              child: FadeSlideIn(
+                child: const InlineBanner(
+                  message: 'TripSplit records bookings you have already made. It does not reserve anything and cannot confirm availability or prices.',
+                  tone: StatusTone.info,
+                  icon: Icons.info_outline,
+                ),
+              ),
             ),
-            child: InlineBanner(
-              message: 'TripSplit records bookings you have already made. It does not reserve anything and cannot confirm availability or prices.',
-              tone: StatusTone.info,
-              icon: Icons.info_outline,
-            ),
-          ),
-          Expanded(
-            child: AppConfig.demoMode
-                ? _DemoList(tripId: widget.tripId)
-                : FutureBuilder<List<Booking>>(
-                    future: ref
-                        .watch(tripRepositoryProvider)
-                        .bookings
-                        .list(widget.tripId),
-                    builder:
-                        (
-                          BuildContext context,
-                          AsyncSnapshot<List<Booking>> snapshot,
-                        ) {
-                          if (!snapshot.hasData) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          final List<Booking> bookings = snapshot.data!;
-                          if (bookings.isEmpty) {
-                            return EmptyState(
-                              icon: Icons.confirmation_number_outlined,
-                              title: 'No bookings yet',
-                              message: 'Add the flights, trains, hotels and restaurant reservations you have already made so the whole group has the references.',
-                              action: FilledButton.icon(
-                                onPressed: () => _edit(context, null),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add a booking'),
+            Expanded(
+              child: AppConfig.demoMode
+                  ? _DemoList(tripId: widget.tripId)
+                  : FutureBuilder<List<Booking>>(
+                      future: ref
+                          .watch(tripRepositoryProvider)
+                          .bookings
+                          .list(widget.tripId),
+                      builder:
+                          (
+                            BuildContext context,
+                            AsyncSnapshot<List<Booking>> snapshot,
+                          ) {
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            final List<Booking> bookings = snapshot.data!;
+                            if (bookings.isEmpty) {
+                              return EmptyState(
+                                icon: Icons.confirmation_number_outlined,
+                                title: 'No bookings yet',
+                                message: 'Add the flights, trains, hotels and restaurant reservations you have already made so the whole group has the references.',
+                                action: FilledButton.icon(
+                                  onPressed: () => _edit(context, null),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add a booking'),
+                                ),
+                              );
+                            }
+                            return ScrollAwareShell(
+                              child: ListView.builder(
+                                padding: const EdgeInsets.only(
+                                  left: AppSpacing.lg,
+                                  right: AppSpacing.lg,
+                                  top: AppSpacing.lg,
+                                  bottom: 96,
+                                ),
+                                itemCount: bookings.length,
+                                itemBuilder: (BuildContext context, int i) =>
+                                    FadeSlideIn(
+                                      delay: Duration(
+                                        milliseconds: staggerDelayFor(i),
+                                      ),
+                                      child: _BookingCard(
+                                        booking: bookings[i],
+                                        onEdit: () =>
+                                            _edit(context, bookings[i]),
+                                        onDelete: () =>
+                                            _delete(context, bookings[i]),
+                                      ),
+                                    ),
                               ),
                             );
-                          }
-                          return ListView.builder(
-                            padding: const EdgeInsets.all(AppSpacing.lg),
-                            itemCount: bookings.length,
-                            itemBuilder: (BuildContext context, int i) =>
-                                _BookingCard(
-                                  booking: bookings[i],
-                                  onEdit: () => _edit(context, bookings[i]),
-                                  onDelete: () => _delete(context, bookings[i]),
-                                ),
-                          );
-                        },
-                  ),
-          ),
-        ],
+                          },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

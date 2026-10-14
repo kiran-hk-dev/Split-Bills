@@ -8,6 +8,7 @@ import '../../data/models/reference.dart';
 import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import 'emergency_center_page.dart';
 import 'emergency_data.dart';
 import 'guide_page.dart';
@@ -62,153 +63,195 @@ class HongKongLostPassportPage extends ConsumerWidget {
         .where((EmergencyGuide g) => g.slug == 'lost-passport-hong-kong')
         .firstOrNull;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Lost passport in Hong Kong'),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => context.push('/emergency/lost-passport-abroad'),
-            icon: const Icon(Icons.public),
-            tooltip: 'General guide for any country',
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+    return PageScaffold(
+      title: 'Lost passport in Hong Kong',
+      actions: <Widget>[
+        IconButton(
+          onPressed: () => context.push('/emergency/lost-passport-abroad'),
+          icon: const Icon(Icons.public),
+          tooltip: 'General guide for any country',
+        ),
+      ],
+      // PageScrollView carries the width cap, the pointer-aware scrollbar and
+      // the bottom clearance that keeps the closing warning visible above the
+      // navigation bar.
+      body: PageScrollView(
         children: <Widget>[
-          const InlineBanner(
-            message:
-                'If you are in danger right now, call 999. In the Hong Kong SAR, 999 '
-                'reaches police, fire services and ambulance.',
-            tone: StatusTone.danger,
-            icon: Icons.priority_high,
+          FadeSlideIn(
+            child: const InlineBanner(
+              message:
+                  'If you are in danger right now, call 999. In the Hong Kong SAR, 999 '
+                  'reaches police, fire services and ambulance.',
+              tone: StatusTone.danger,
+              icon: Icons.priority_high,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
 
           // Immediate danger check
-          _ImmediateDangerCard(
-            onCall: () => launchUrl(Uri.parse('tel:999')),
-            onMap: () => launchUrl(
-              Uri.parse(
-                'https://www.openstreetmap.org/search?query=police%20station%20Hong%20Kong',
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child: _ImmediateDangerCard(
+              onCall: () => launchUrl(Uri.parse('tel:999')),
+              onMap: () => launchUrl(
+                Uri.parse(
+                  'https://www.openstreetmap.org/search?query=police%20station%20Hong%20Kong',
+                ),
+                mode: LaunchMode.externalApplication,
               ),
-              mode: LaunchMode.externalApplication,
             ),
           ),
 
           const SizedBox(height: AppSpacing.xl),
-          const SectionHeader(
-            title: 'Hong Kong contacts',
-            subtitle: 'Shown with their source and verification state',
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
-          ),
-          for (final EmergencyResource r in contacts)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: _HkContactCard(resource: r),
-            ),
-
-          const SizedBox(height: AppSpacing.lg),
-          const SectionHeader(
-            title: 'Show this to someone who speaks Cantonese or Mandarin',
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
-          ),
-          PhraseCard(
-            phrases: bundled?.phrasesFor('zh-Hant') ?? const <String>[],
-            language: 'zh-Hant',
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
-          const SectionHeader(
-            title: 'Full procedure',
-            subtitle: 'The same six steps as the general guide',
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                for (
-                  int i = 0;
-                  i < (bundled?.steps.length ?? 0);
-                  i++
-                ) ...<Widget>[
-                  if (i > 0) const SizedBox(width: AppSpacing.md),
-                  SizedBox(
-                    width: 220,
-                    child: AppCard(
-                      onTap: () =>
-                          context.push('/emergency/lost-passport-hong-kong'),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(
-                            bundled!.steps[i].heading,
-                            style: Theme.of(context).textTheme.titleSmall,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          Text(
-                            bundled.steps[i].body,
-                            style: Theme.of(context).textTheme.bodySmall,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton.icon(
-            onPressed: () => context.push('/emergency/lost-passport-hong-kong'),
-            icon: const Icon(Icons.list_alt),
-            label: const Text('Open the step-by-step guide'),
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
-          const SectionHeader(
-            title: 'Consular coverage in Hong Kong',
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
-          ),
-          const AppCard(
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                Text(
-                  'Not every country maintains a resident consulate in the Hong Kong SAR. '
-                  'Some are represented by an honorary consulate, or a mission accredited '
-                  'from another city.',
-                  style: TextStyle(fontSize: 13, height: 1.5),
+                const SectionHeader(
+                  title: 'Hong Kong contacts',
+                  subtitle: 'Shown with their source and verification state',
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Your own foreign ministry directory will tell you which arrangement '
-                  'applies to your nationality. If your mission is not in Hong Kong, they '
-                  'will tell you which office to contact instead.',
-                  style: TextStyle(fontSize: 13, height: 1.5),
+                for (final EmergencyResource r in contacts)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _HkContactCard(resource: r),
+                  ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(3)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SectionHeader(
+                  title:
+                      'Show this to someone who speaks Cantonese or Mandarin',
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
+                ),
+                PhraseCard(
+                  phrases: bundled?.phrasesFor('zh-Hant') ?? const <String>[],
+                  language: 'zh-Hant',
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(4)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SectionHeader(
+                  title: 'Full procedure',
+                  subtitle: 'The same six steps as the general guide',
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
+                ),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      for (
+                        int i = 0;
+                        i < (bundled?.steps.length ?? 0);
+                        i++
+                      ) ...<Widget>[
+                        if (i > 0) const SizedBox(width: AppSpacing.md),
+                        SizedBox(
+                          width: 220,
+                          child: AppCard(
+                            onTap: () => context.push(
+                              '/emergency/lost-passport-hong-kong',
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                Text(
+                                  bundled!.steps[i].heading,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                Text(
+                                  bundled.steps[i].body,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.lg),
+                FilledButton.icon(
+                  onPressed: () =>
+                      context.push('/emergency/lost-passport-hong-kong'),
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('Open the step-by-step guide'),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(5)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const SectionHeader(
+                  title: 'Consular coverage in Hong Kong',
+                  padding: EdgeInsets.only(bottom: AppSpacing.md),
+                ),
+                const AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Not every country maintains a resident consulate in the Hong Kong SAR. '
+                        'Some are represented by an honorary consulate, or a mission accredited '
+                        'from another city.',
+                        style: TextStyle(fontSize: 13, height: 1.5),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Your own foreign ministry directory will tell you which arrangement '
+                        'applies to your nationality. If your mission is not in Hong Kong, they '
+                        'will tell you which office to contact instead.',
+                        style: TextStyle(fontSize: 13, height: 1.5),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
 
           const SizedBox(height: AppSpacing.lg),
-          const InlineBanner(
-            message:
-                'TripSplit cannot confirm your identity, issue documents, or guarantee '
-                'that any airline will let you board. Those decisions rest with the Hong '
-                'Kong authorities, your embassy and your airline.',
-            tone: StatusTone.warning,
-            icon: Icons.gavel_outlined,
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(6)),
+            child: const InlineBanner(
+              message:
+                  'TripSplit cannot confirm your identity, issue documents, or guarantee '
+                  'that any airline will let you board. Those decisions rest with the Hong '
+                  'Kong authorities, your embassy and your airline.',
+              tone: StatusTone.warning,
+              icon: Icons.gavel_outlined,
+            ),
           ),
-          const SizedBox(height: AppSpacing.huge),
         ],
       ),
     );

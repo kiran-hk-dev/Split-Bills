@@ -9,6 +9,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Visa and entry-requirement organiser.
 ///
@@ -30,8 +31,8 @@ class _VisaPageState extends ConsumerState<VisaPage> {
     final AsyncValue<Trip?> tripAsync = ref.watch(currentTripProvider);
     final Trip? trip = tripAsync.value;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Visa & entry')),
+    return PageScaffold(
+      title: 'Visa & entry',
       floatingActionButton: trip != null && trip.myRole.canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _edit(context, null),
@@ -39,44 +40,59 @@ class _VisaPageState extends ConsumerState<VisaPage> {
               label: const Text('Add destination'),
             )
           : null,
-      body: AppConfig.demoMode
-          ? const _VisaDemoBody()
-          : FutureBuilder<List<VisaRecord>>(
-              future: ref
-                  .watch(tripRepositoryProvider)
-                  .emergency
-                  .visaRecords(widget.tripId),
-              builder:
-                  (
-                    BuildContext context,
-                    AsyncSnapshot<List<VisaRecord>> snapshot,
-                  ) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.data!.isEmpty) {
-                      return EmptyState(
-                        icon: Icons.assignment_outlined,
-                        title: 'No destinations recorded',
-                        message: 'Add each destination you will enter so you can track what you checked and where you found it.',
-                        action: FilledButton.icon(
-                          onPressed: () => _edit(context, null),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add a destination'),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      itemCount: snapshot.data!.length,
-                      itemBuilder: (BuildContext context, int i) =>
-                          VisaRecordCard(
-                            record: snapshot.data![i],
-                            onEdit: () => _edit(context, snapshot.data![i]),
+      // PageBody caps the width so the list and empty state do not stretch
+      // across a desktop monitor. It passes bounded height through to the
+      // branches below, which is what lets them fill the page.
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: FadeSlideIn(
+          child: AppConfig.demoMode
+            ? const _VisaDemoBody()
+            : FutureBuilder<List<VisaRecord>>(
+                future: ref
+                    .watch(tripRepositoryProvider)
+                    .emergency
+                    .visaRecords(widget.tripId),
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<List<VisaRecord>> snapshot,
+                    ) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.data!.isEmpty) {
+                        return EmptyState(
+                          icon: Icons.assignment_outlined,
+                          title: 'No destinations recorded',
+                          message: 'Add each destination you will enter so you can track what you checked and where you found it.',
+                          action: FilledButton.icon(
+                            onPressed: () => _edit(context, null),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add a destination'),
                           ),
-                    );
-                  },
-            ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                          // Clears the navigation bar and the extended FAB.
+                          96,
+                        ),
+                        itemCount: snapshot.data!.length,
+                        itemBuilder: (BuildContext context, int i) =>
+                            VisaRecordCard(
+                              record: snapshot.data![i],
+                              onEdit: () =>
+                                  _edit(context, snapshot.data![i]),
+                            ),
+                      );
+                    },
+              ),
+        ),
+      ),
     );
   }
 

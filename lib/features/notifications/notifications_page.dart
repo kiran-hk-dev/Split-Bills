@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../data/models/misc.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -21,23 +22,21 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       notificationsProvider,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () async {
-              await ref
-                  .read(tripRepositoryProvider)
-                  .notifications
-                  .markAllRead();
-              ref.invalidate(notificationsProvider);
-              ref.invalidate(unreadNotificationCountProvider);
-            },
-            child: const Text('Mark all read'),
-          ),
-        ],
-      ),
+    return PageScaffold(
+      title: 'Notifications',
+      actions: <Widget>[
+        TextButton(
+          onPressed: () async {
+            await ref.read(tripRepositoryProvider).notifications.markAllRead();
+            ref.invalidate(notificationsProvider);
+            ref.invalidate(unreadNotificationCountProvider);
+          },
+          child: const Text('Mark all read'),
+        ),
+      ],
+      // PageScrollView carries the width cap, the gutter and the bottom
+      // clearance, so the oldest notification is never behind the shell's
+      // navigation bar.
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object err, StackTrace _) => ErrorStateView(message: '$err'),
@@ -58,27 +57,44 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
               .where((AppNotification n) => !n.isUnread)
               .toList();
 
-          return ListView(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+          // One cascade across both groups: `start` continues the stagger so the
+          // "Earlier" cards do not re-run the entrance the unread ones already
+          // finished.
+          int start = 0;
+
+          return PageScrollView(
             children: <Widget>[
               if (unread.isNotEmpty) ...<Widget>[
-                SectionHeader(
-                  title: 'Unread',
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                ),
-                for (final AppNotification n in unread) _Tile(notification: n),
-              ],
-              if (read.isNotEmpty) ...<Widget>[
-                SectionHeader(
-                  title: 'Earlier',
-                  padding: const EdgeInsets.only(
-                    top: AppSpacing.xl,
-                    bottom: AppSpacing.md,
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(start++)),
+                  child: const SectionHeader(
+                    title: 'Unread',
+                    padding: EdgeInsets.only(bottom: AppSpacing.md),
                   ),
                 ),
-                for (final AppNotification n in read) _Tile(notification: n),
+                for (final AppNotification n in unread)
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(start++)),
+                    child: _Tile(notification: n),
+                  ),
               ],
-              const SizedBox(height: AppSpacing.huge),
+              if (read.isNotEmpty) ...<Widget>[
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(start++)),
+                  child: const SectionHeader(
+                    title: 'Earlier',
+                    padding: EdgeInsets.only(
+                      top: AppSpacing.xl,
+                      bottom: AppSpacing.md,
+                    ),
+                  ),
+                ),
+                for (final AppNotification n in read)
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(start++)),
+                    child: _Tile(notification: n),
+                  ),
+              ],
             ],
           );
         },

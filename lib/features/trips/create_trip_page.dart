@@ -11,6 +11,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/place_picker.dart';
 
 /// Create or edit a trip. Multi-city trips are supported by adding several
@@ -212,288 +213,376 @@ class _CreateTripPageState extends ConsumerState<CreateTripPage> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.isEditing ? 'Edit trip' : 'New trip')),
+    return PageScaffold(
+      title: widget.isEditing ? 'Edit trip' : 'New trip',
+      // PageScrollView carries the form's width cap, the shared gutter and the
+      // bottom clearance, so the submit button is never left behind the
+      // navigation bar. The ListView's own padding is dropped in favour of it.
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.md,
-            AppSpacing.lg,
-            AppSpacing.huge,
-          ),
+        child: PageScrollView(
           children: <Widget>[
             if (_error != null) ...<Widget>[
-              InlineBanner(message: _error!, tone: StatusTone.danger),
+              FadeSlideIn(
+                delay: Duration(milliseconds: staggerDelayFor(0)),
+                child: InlineBanner(message: _error!, tone: StatusTone.danger),
+              ),
               const SizedBox(height: AppSpacing.lg),
             ],
 
-            TextFormField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Trip name',
-                hintText: 'Kyoto in autumn',
-                prefixIcon: Icon(Icons.title),
-              ),
-              validator: (String? v) => (v == null || v.trim().length < 2)
-                  ? 'Give the trip a name.'
-                  : null,
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _origin,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Travelling from',
-                hintText: 'London',
-                prefixIcon: Icon(Icons.flight_takeoff),
-              ),
-            ),
-
-            if (!widget.isEditing) ...<Widget>[
-              const SizedBox(height: AppSpacing.lg),
-              _DestinationBuilder(
-                destinations: _destinations,
-                onChanged: () => setState(() {}),
-              ),
-            ],
-
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: DateField(
-                    label: 'Start date',
-                    value: _start,
-                    onChanged: (DateTime d) => setState(() {
-                      _start = d;
-                      if (_end.isBefore(_start)) _end = _start;
-                    }),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(0)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  TextFormField(
+                    controller: _name,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Trip name',
+                      hintText: 'Kyoto in autumn',
+                      prefixIcon: Icon(Icons.title),
+                    ),
+                    validator: (String? v) => (v == null || v.trim().length < 2)
+                        ? 'Give the trip a name.'
+                        : null,
                   ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: DateField(
-                    label: 'End date',
-                    value: _end,
-                    firstDate: _start,
-                    onChanged: (DateTime d) => setState(() => _end = d),
+
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    controller: _origin,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      labelText: 'Travelling from',
+                      hintText: 'London',
+                      prefixIcon: Icon(Icons.flight_takeoff),
+                    ),
                   ),
-                ),
-              ],
-            ),
 
-            const SizedBox(height: AppSpacing.md),
-            _DayCountRow(start: _start, end: _end),
-
-            const SizedBox(height: AppSpacing.lg),
-            // These two were side by side in a 50/50 Row. MoneyField carries a
-            // currency button and a leading icon, so at half of a 390px screen
-            // the input itself got about 90px and its helper text clipped to
-            // "Option al. Yo...". They stack below the breakpoint where that
-            // stops being true, and sit together above it.
-            LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final Widget budget = MoneyField(
-                  label: 'Total budget',
-                  currency: _currency,
-                  controller: _budget,
-                  onCurrencyChanged: (String c) =>
-                      setState(() => _currency = c),
-                  helperText:
-                      'Optional. You can allocate it by category later.',
-                );
-                final Widget travellers = _TravelerStepper(
-                  value: _travelers,
-                  onChanged: (int v) => setState(() => _travelers = v),
-                );
-
-                if (constraints.maxWidth < 460) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      budget,
-                      const SizedBox(height: AppSpacing.md),
-                      travellers,
-                    ],
-                  );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Expanded(child: budget),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(child: travellers),
+                  if (!widget.isEditing) ...<Widget>[
+                    const SizedBox(height: AppSpacing.lg),
+                    _DestinationBuilder(
+                      destinations: _destinations,
+                      onChanged: () => setState(() {}),
+                    ),
                   ],
-                );
-              },
+                ],
+              ),
+            ),
+
+            const SizedBox(height: AppSpacing.lg),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(1)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: DateField(
+                          label: 'Start date',
+                          value: _start,
+                          onChanged: (DateTime d) => setState(() {
+                            _start = d;
+                            if (_end.isBefore(_start)) _end = _start;
+                          }),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: DateField(
+                          label: 'End date',
+                          value: _end,
+                          firstDate: _start,
+                          onChanged: (DateTime d) => setState(() => _end = d),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: AppSpacing.md),
+                  _DayCountRow(start: _start, end: _end),
+
+                  const SizedBox(height: AppSpacing.lg),
+                  // These two were side by side in a 50/50 Row. MoneyField
+                  // carries a currency button and a leading icon, so at half of
+                  // a 390px screen the input itself got about 90px and its
+                  // helper text clipped to "Option al. Yo...". They stack below
+                  // the breakpoint where that stops being true, and sit
+                  // together above it.
+                  LayoutBuilder(
+                    builder:
+                        (BuildContext context, BoxConstraints constraints) {
+                          final Widget budget = MoneyField(
+                            label: 'Total budget',
+                            currency: _currency,
+                            controller: _budget,
+                            onCurrencyChanged: (String c) =>
+                                setState(() => _currency = c),
+                            helperText:
+                                'Optional. You can allocate it by category later.',
+                          );
+                          final Widget travellers = _TravelerStepper(
+                            value: _travelers,
+                            onChanged: (int v) =>
+                                setState(() => _travelers = v),
+                          );
+
+                          if (constraints.maxWidth < 460) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: <Widget>[
+                                budget,
+                                const SizedBox(height: AppSpacing.md),
+                                travellers,
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Expanded(child: budget),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(child: travellers),
+                            ],
+                          );
+                        },
+                      ),
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel('Trip style'),
-            const SizedBox(height: AppSpacing.md),
-            SegmentedButton<TravelStyle>(
-              segments: <ButtonSegment<TravelStyle>>[
-                for (final TravelStyle s in TravelStyle.values)
-                  ButtonSegment<TravelStyle>(value: s, label: Text(s.label)),
-              ],
-              selected: <TravelStyle>{_style},
-              onSelectionChanged: (Set<TravelStyle> s) =>
-                  setState(() => _style = s.first),
-              showSelectedIcon: false,
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(2)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _SectionLabel('Trip style'),
+                  const SizedBox(height: AppSpacing.md),
+                  SegmentedButton<TravelStyle>(
+                    segments: <ButtonSegment<TravelStyle>>[
+                      for (final TravelStyle s in TravelStyle.values)
+                        ButtonSegment<TravelStyle>(value: s, label: Text(s.label)),
+                    ],
+                    selected: <TravelStyle>{_style},
+                    onSelectionChanged: (Set<TravelStyle> s) =>
+                        setState(() => _style = s.first),
+                    showSelectedIcon: false,
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel('Itinerary pace'),
-            const SizedBox(height: AppSpacing.xs),
-            Text(_pace.activityHint, style: theme.textTheme.bodySmall),
-            const SizedBox(height: AppSpacing.md),
-            SegmentedButton<ItineraryPace>(
-              segments: <ButtonSegment<ItineraryPace>>[
-                for (final ItineraryPace p in ItineraryPace.values)
-                  ButtonSegment<ItineraryPace>(value: p, label: Text(p.label)),
-              ],
-              selected: <ItineraryPace>{_pace},
-              onSelectionChanged: (Set<ItineraryPace> s) =>
-                  setState(() => _pace = s.first),
-              showSelectedIcon: false,
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(3)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _SectionLabel('Itinerary pace'),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _pace.activityHint,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  SegmentedButton<ItineraryPace>(
+                    segments: <ButtonSegment<ItineraryPace>>[
+                      for (final ItineraryPace p in ItineraryPace.values)
+                        ButtonSegment<ItineraryPace>(
+                          value: p,
+                          label: Text(p.label),
+                        ),
+                    ],
+                    selected: <ItineraryPace>{_pace},
+                    onSelectionChanged: (Set<ItineraryPace> s) =>
+                        setState(() => _pace = s.first),
+                    showSelectedIcon: false,
+                  ),
+                ],
+              ),
             ),
 
             if (!widget.isEditing) ...<Widget>[
               const SizedBox(height: AppSpacing.xl),
-              _SectionLabel('Status'),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                children: <Widget>[
-                  for (final TripStatus s in <TripStatus>[
-                    TripStatus.planning,
-                    TripStatus.draft,
-                  ])
-                    ChoiceChip(
-                      selected: _status == s.name,
-                      label: Text(s.label),
-                      onSelected: (_) => setState(() => _status = s.name),
+              FadeSlideIn(
+                delay: Duration(milliseconds: staggerDelayFor(4)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const _SectionLabel('Status'),
+                    const SizedBox(height: AppSpacing.md),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      children: <Widget>[
+                        for (final TripStatus s in <TripStatus>[
+                          TripStatus.planning,
+                          TripStatus.draft,
+                        ])
+                          ChoiceChip(
+                            selected: _status == s.name,
+                            label: Text(s.label),
+                            onSelected: (_) => setState(() => _status = s.name),
+                          ),
+                      ],
                     ),
-                ],
+                  ],
+                ),
               ),
             ],
 
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel('Interests'),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: <Widget>[
-                for (final String option in interestOptions)
-                  FilterChip(
-                    label: Text(option),
-                    selected: _interests.contains(option),
-                    onSelected: (bool v) => setState(() {
-                      v ? _interests.add(option) : _interests.remove(option);
-                    }),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(5)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _SectionLabel('Interests'),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: <Widget>[
+                      for (final String option in interestOptions)
+                        FilterChip(
+                          label: Text(option),
+                          selected: _interests.contains(option),
+                          onSelected: (bool v) => setState(() {
+                            v
+                                ? _interests.add(option)
+                                : _interests.remove(option);
+                          }),
+                        ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel('Transport preference'),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: <Widget>[
-                for (final String option in transportOptions)
-                  FilterChip(
-                    label: Text(option),
-                    selected: _transport.contains(option),
-                    onSelected: (bool v) => setState(() {
-                      v ? _transport.add(option) : _transport.remove(option);
-                    }),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(6)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _SectionLabel('Transport preference'),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: <Widget>[
+                      for (final String option in transportOptions)
+                        FilterChip(
+                          label: Text(option),
+                          selected: _transport.contains(option),
+                          onSelected: (bool v) => setState(() {
+                            v
+                                ? _transport.add(option)
+                                : _transport.remove(option);
+                          }),
+                        ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
-            _SectionLabel('Accommodation preference'),
-            const SizedBox(height: AppSpacing.md),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: <Widget>[
-                for (final String option in accommodationOptions)
-                  FilterChip(
-                    label: Text(option),
-                    selected: _accommodation.contains(option),
-                    onSelected: (bool v) => setState(() {
-                      v
-                          ? _accommodation.add(option)
-                          : _accommodation.remove(option);
-                    }),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(7)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _SectionLabel('Accommodation preference'),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: <Widget>[
+                      for (final String option in accommodationOptions)
+                        FilterChip(
+                          label: Text(option),
+                          selected: _accommodation.contains(option),
+                          onSelected: (bool v) => setState(() {
+                            v
+                                ? _accommodation.add(option)
+                                : _accommodation.remove(option);
+                          }),
+                        ),
+                    ],
                   ),
-              ],
+                ],
+              ),
             ),
 
             const SizedBox(height: AppSpacing.xl),
-            TextFormField(
-              controller: _dietary,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Dietary requirements',
-                hintText: 'e.g. two vegetarians, one nut allergy',
-                prefixIcon: Icon(Icons.restaurant_outlined),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _accessibility,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Accessibility needs',
-                hintText: 'e.g. step-free access, limited walking',
-                prefixIcon: Icon(Icons.accessible_outlined),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _description,
-              maxLines: 3,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                prefixIcon: Icon(Icons.notes),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            TextFormField(
-              controller: _notes,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Private notes',
-                hintText: 'Only visible to trip members',
-                prefixIcon: Icon(Icons.lock_outline),
-                alignLabelWithHint: true,
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(8)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  TextFormField(
+                    controller: _dietary,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Dietary requirements',
+                      hintText: 'e.g. two vegetarians, one nut allergy',
+                      prefixIcon: Icon(Icons.restaurant_outlined),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    controller: _accessibility,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Accessibility needs',
+                      hintText: 'e.g. step-free access, limited walking',
+                      prefixIcon: Icon(Icons.accessible_outlined),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    controller: _description,
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      prefixIcon: Icon(Icons.notes),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  TextFormField(
+                    controller: _notes,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Private notes',
+                      hintText: 'Only visible to trip members',
+                      prefixIcon: Icon(Icons.lock_outline),
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                ],
               ),
             ),
 
             const SizedBox(height: AppSpacing.xxl),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(widget.isEditing ? 'Save changes' : 'Create trip'),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(9)),
+              child: FilledButton(
+                onPressed: _busy ? null : _save,
+                child: _busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(widget.isEditing ? 'Save changes' : 'Create trip'),
+              ),
             ),
           ],
         ),

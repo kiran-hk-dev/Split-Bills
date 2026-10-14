@@ -14,6 +14,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/trip_cover.dart';
 
 /// Hub for one trip. Every module is scoped to this trip id.
@@ -54,9 +55,8 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
     );
 
     return async.when(
-      loading: () => const Scaffold(body: _TripDetailSkeleton()),
-      error: (Object err, StackTrace _) => Scaffold(
-        appBar: AppBar(),
+      loading: () => PageScaffold(body: const _TripDetailSkeleton()),
+      error: (Object err, StackTrace _) => PageScaffold(
         body: ErrorStateView(
           message: 'Could not load this trip.\n$err',
           onRetry: () => ref.invalidate(tripByIdProvider(widget.tripId)),
@@ -64,8 +64,7 @@ class _TripDetailPageState extends ConsumerState<TripDetailPage> {
       ),
       data: (Trip? trip) {
         if (trip == null) {
-          return Scaffold(
-            appBar: AppBar(),
+          return PageScaffold(
             body: ErrorStateView(
               title: 'Trip not found',
               message:
@@ -89,22 +88,29 @@ class _TripDetailSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SkeletonBox(height: 28),
-            SizedBox(height: AppSpacing.sm),
-            SkeletonBox(height: 18),
-            SizedBox(height: AppSpacing.xl),
-            SkeletonBox(height: 160),
-            SizedBox(height: AppSpacing.lg),
-            SkeletonBox(height: 96),
-            SizedBox(height: AppSpacing.lg),
-            SkeletonBox(height: 96),
-          ],
+    // PageBody carries the 1080px width cap. padding is zero because the
+    // sections below already apply their own AppSpacing.lg gutter.
+    return PageBody(
+      padding: EdgeInsets.zero,
+      child: ScrollAwareShell(
+        child: const SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SkeletonBox(height: 28),
+                SizedBox(height: AppSpacing.sm),
+                SkeletonBox(height: 18),
+                SizedBox(height: AppSpacing.xl),
+                SkeletonBox(height: 160),
+                SizedBox(height: AppSpacing.lg),
+                SkeletonBox(height: 96),
+                SizedBox(height: AppSpacing.lg),
+                SkeletonBox(height: 96),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -122,222 +128,195 @@ class _TripDetailBody extends ConsumerWidget {
     final AsyncValue<List<TripMember>> members = ref.watch(
       membersProvider(trip.id),
     );
+    final List<Widget> modules = _moduleTiles(trip, context);
 
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 240,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                trip.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  shadows: <Shadow>[
-                    Shadow(blurRadius: 8, color: Colors.black54),
-                  ],
+    // The SliverAppBar below is this page's header: it carries the cover, the
+    // trip name, the automatic back arrow and the overflow menu. PageScaffold
+    // therefore adds none of its own, or the page would carry two app bars and
+    // two back buttons. padding is zero because every section below already
+    // applies its own AppSpacing.lg gutter.
+    return PageScaffold(
+      showBackButton: false,
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: ScrollAwareShell(
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 240,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Text(
+                    trip.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      shadows: <Shadow>[
+                        Shadow(blurRadius: 8, color: Colors.black54),
+                      ],
+                    ),
+                  ),
+                  background: TripCover(
+                    imageUrl: trip.coverImageUrl,
+                    seed: '${trip.countryCode ?? ''}:${trip.name}',
+                    // No title here: the trip name and dates are already laid
+                    // out underneath, so overlaying them would duplicate them.
+                    showScrim: true,
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+                actions: <Widget>[
+                  PopupMenuButton<String>(
+                    onSelected: (String value) =>
+                        _handleAction(context, ref, value),
+                    itemBuilder:
+                        (BuildContext context) => <PopupMenuEntry<String>>[
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit_outlined),
+                              title: Text('Edit trip'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'duplicate',
+                            child: ListTile(
+                              leading: Icon(Icons.copy_all_outlined),
+                              title: Text('Duplicate'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'archive',
+                            child: ListTile(
+                              leading: Icon(Icons.inventory_2_outlined),
+                              title: Text('Archive'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          if (trip.myRole.isOwner)
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: ListTile(
+                                leading: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                ),
+                                title: Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          if (trip.myRole.isOwner)
+                            const PopupMenuItem(
+                              value: 'leave',
+                              child: ListTile(
+                                leading: Icon(Icons.logout),
+                                title: Text('Leave trip'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                        ],
+                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(0)),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                      0,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            StatusPill(
+                              label: trip.effectiveStatus.label,
+                              tone: trip.isOngoing
+                                  ? StatusTone.positive
+                                  : StatusTone.info,
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            StatusPill(
+                              label: trip.travelStyle.label,
+                              icon: Icons.tune,
+                            ),
+                            const Spacer(),
+                            Text(
+                              trip.dateRangeLabel,
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
+                        if (trip.description != null &&
+                            trip.description!.isNotEmpty) ...<Widget>[
+                          const SizedBox(height: AppSpacing.md),
+                          Text(trip.description!, style: theme.textTheme.bodyMedium),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                        _MetaRow(
+                          trip: trip,
+                          members: members.value ?? const <TripMember>[],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              background: TripCover(
-                imageUrl: trip.coverImageUrl,
-                seed: '${trip.countryCode ?? ''}:${trip.name}',
-                // No title here: the trip name and dates are already laid
-                // out underneath, so overlaying them would duplicate them.
-                showScrim: true,
-                borderRadius: BorderRadius.zero,
+              SliverToBoxAdapter(
+                child: FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(1)),
+                  child: _BudgetStrip(trip: trip),
+                ),
               ),
-            ),
-            actions: <Widget>[
-              PopupMenuButton<String>(
-                onSelected: (String value) =>
-                    _handleAction(context, ref, value),
-                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: ListTile(
-                      leading: Icon(Icons.edit_outlined),
-                      title: Text('Edit trip'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+              SliverToBoxAdapter(
+                child: FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(2)),
+                  child: const SectionHeader(
+                    title: 'Trip modules',
+                    subtitle: 'Everything below is scoped to this trip',
                   ),
-                  const PopupMenuItem(
-                    value: 'duplicate',
-                    child: ListTile(
-                      leading: Icon(Icons.copy_all_outlined),
-                      title: Text('Duplicate'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.huge,
+                ),
+                // Each tile cascades in on its own index; the delay stops
+                // growing past the eighth tile.
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    mainAxisSpacing: AppSpacing.md,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisExtent: 104,
                   ),
-                  const PopupMenuItem(
-                    value: 'archive',
-                    child: ListTile(
-                      leading: Icon(Icons.inventory_2_outlined),
-                      title: Text('Archive'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  if (trip.myRole.isOwner)
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: ListTile(
-                        leading: Icon(Icons.delete_outline, color: Colors.red),
-                        title: Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                        contentPadding: EdgeInsets.zero,
+                  delegate: SliverChildListDelegate(<Widget>[
+                    for (int i = 0; i < modules.length; i++)
+                      FadeSlideIn(
+                        delay: Duration(milliseconds: staggerDelayFor(i)),
+                        child: modules[i],
                       ),
-                    ),
-                  if (trip.myRole.isOwner)
-                    const PopupMenuItem(
-                      value: 'leave',
-                      child: ListTile(
-                        leading: Icon(Icons.logout),
-                        title: Text('Leave trip'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                ],
+                  ]),
+                ),
               ),
             ],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.lg,
-                AppSpacing.lg,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      StatusPill(
-                        label: trip.effectiveStatus.label,
-                        tone: trip.isOngoing
-                            ? StatusTone.positive
-                            : StatusTone.info,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      StatusPill(
-                        label: trip.travelStyle.label,
-                        icon: Icons.tune,
-                      ),
-                      const Spacer(),
-                      Text(
-                        trip.dateRangeLabel,
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  if (trip.description != null &&
-                      trip.description!.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: AppSpacing.md),
-                    Text(trip.description!, style: theme.textTheme.bodyMedium),
-                  ],
-                  const SizedBox(height: AppSpacing.lg),
-                  _MetaRow(
-                    trip: trip,
-                    members: members.value ?? const <TripMember>[],
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(child: _BudgetStrip(trip: trip)),
-          SliverToBoxAdapter(
-            child: SectionHeader(
-              title: 'Trip modules',
-              subtitle: 'Everything below is scoped to this trip',
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.huge,
-            ),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 220,
-                mainAxisSpacing: AppSpacing.md,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisExtent: 104,
-              ),
-              delegate: SliverChildListDelegate(<Widget>[
-                _ModuleTile(
-                  icon: Icons.map_outlined,
-                  label: 'Itinerary',
-                  caption: '${trip.dayCount} days',
-                  onTap: () => context.push('/trips/${trip.id}/itinerary'),
-                ),
-                _ModuleTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: 'Budget',
-                  caption: trip.baseCurrency,
-                  onTap: () => context.push('/trips/${trip.id}/budget'),
-                ),
-                _ModuleTile(
-                  icon: Icons.receipt_long_outlined,
-                  label: 'Expenses',
-                  caption: 'Split & settle',
-                  onTap: () => context.push('/trips/${trip.id}/expenses'),
-                  primary: true,
-                ),
-                _ModuleTile(
-                  icon: Icons.balance_outlined,
-                  label: 'Balances',
-                  caption: 'Who owes whom',
-                  onTap: () => context.push('/trips/${trip.id}/balances'),
-                ),
-                _ModuleTile(
-                  icon: Icons.bar_chart_outlined,
-                  label: 'Reports',
-                  caption: 'CSV & PDF',
-                  onTap: () => context.push('/trips/${trip.id}/reports'),
-                ),
-                _ModuleTile(
-                  icon: Icons.confirmation_number_outlined,
-                  label: 'Bookings',
-                  caption: 'Flights & stays',
-                  onTap: () => context.push('/trips/${trip.id}/bookings'),
-                ),
-                _ModuleTile(
-                  icon: Icons.folder_outlined,
-                  label: 'Documents',
-                  caption: 'Tickets & insurance',
-                  onTap: () => context.push('/documents?trip=${trip.id}'),
-                ),
-                _ModuleTile(
-                  icon: Icons.work_outline,
-                  label: 'Visa & entry',
-                  caption: 'Check requirements',
-                  onTap: () => context.push('/trips/${trip.id}/visa'),
-                ),
-                _ModuleTile(
-                  icon: Icons.checklist_outlined,
-                  label: 'Packing',
-                  caption: 'Checklist',
-                  onTap: () => context.push('/trips/${trip.id}/packing'),
-                ),
-                _ModuleTile(
-                  icon: Icons.group_outlined,
-                  label: 'Members',
-                  caption: '${trip.memberCount} people',
-                  onTap: () => context.push('/trips/${trip.id}/members'),
-                ),
-              ]),
-            ),
-          ),
-        ],
+        ),
       ),
       floatingActionButton: trip.myRole.canEdit
           ? FloatingActionButton.extended(
@@ -348,6 +327,75 @@ class _TripDetailBody extends ConsumerWidget {
           : null,
     );
   }
+
+  /// The module grid's tiles, in order.
+  ///
+  /// Kept as a list rather than inline sliver children so the grid can wrap
+  /// each tile in its own entrance without the definitions moving.
+  static List<Widget> _moduleTiles(Trip trip, BuildContext context) =>
+      <Widget>[
+        _ModuleTile(
+          icon: Icons.map_outlined,
+          label: 'Itinerary',
+          caption: '${trip.dayCount} days',
+          onTap: () => context.push('/trips/${trip.id}/itinerary'),
+        ),
+        _ModuleTile(
+          icon: Icons.account_balance_wallet_outlined,
+          label: 'Budget',
+          caption: trip.baseCurrency,
+          onTap: () => context.push('/trips/${trip.id}/budget'),
+        ),
+        _ModuleTile(
+          icon: Icons.receipt_long_outlined,
+          label: 'Expenses',
+          caption: 'Split & settle',
+          onTap: () => context.push('/trips/${trip.id}/expenses'),
+          primary: true,
+        ),
+        _ModuleTile(
+          icon: Icons.balance_outlined,
+          label: 'Balances',
+          caption: 'Who owes whom',
+          onTap: () => context.push('/trips/${trip.id}/balances'),
+        ),
+        _ModuleTile(
+          icon: Icons.bar_chart_outlined,
+          label: 'Reports',
+          caption: 'CSV & PDF',
+          onTap: () => context.push('/trips/${trip.id}/reports'),
+        ),
+        _ModuleTile(
+          icon: Icons.confirmation_number_outlined,
+          label: 'Bookings',
+          caption: 'Flights & stays',
+          onTap: () => context.push('/trips/${trip.id}/bookings'),
+        ),
+        _ModuleTile(
+          icon: Icons.folder_outlined,
+          label: 'Documents',
+          caption: 'Tickets & insurance',
+          onTap: () => context.push('/documents?trip=${trip.id}'),
+        ),
+        _ModuleTile(
+          icon: Icons.work_outline,
+          label: 'Visa & entry',
+          caption: 'Check requirements',
+          onTap: () => context.push('/trips/${trip.id}/visa'),
+        ),
+        _ModuleTile(
+          icon: Icons.checklist_outlined,
+          label: 'Packing',
+          caption: 'Checklist',
+          onTap: () => context.push('/trips/${trip.id}/packing'),
+        ),
+        _ModuleTile(
+          icon: Icons.group_outlined,
+          label: 'Members',
+          caption: '${trip.memberCount} people',
+          onTap: () => context.push('/trips/${trip.id}/members'),
+        ),
+      ];
 
   Future<void> _handleAction(
     BuildContext context,
@@ -693,8 +741,8 @@ class _MembersPageState extends ConsumerState<MembersPage> {
     final AsyncValue<Trip?> tripAsync = ref.watch(currentTripProvider);
     final Trip? trip = tripAsync.value;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Members')),
+    return PageScaffold(
+      title: 'Members',
       floatingActionButton: trip != null && trip.myRole.canAdmin
           ? FloatingActionButton.extended(
               onPressed: () => _invite(context),
@@ -705,86 +753,105 @@ class _MembersPageState extends ConsumerState<MembersPage> {
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object err, StackTrace _) => ErrorStateView(message: '$err'),
-        data: (List<TripMember> members) => ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        data: (List<TripMember> members) => PageScrollView(
+          // The extended Invite button floats over the list, so the clearance
+          // clears it as well as the navigation bar.
+          bottomClearance: 120,
           children: <Widget>[
-            InlineBanner(
-              message: 'Roles are enforced on the server. Hiding a button here does not grant or remove access — the database decides.',
-              tone: StatusTone.info,
-              icon: Icons.lock_outline,
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(0)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const InlineBanner(
+                    message: 'Roles are enforced on the server. Hiding a button here does not grant or remove access — the database decides.',
+                    tone: StatusTone.info,
+                    icon: Icons.lock_outline,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  for (final TripMember m in members)
+                    AppCard(
+                      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+                      child: Row(
+                        children: <Widget>[
+                          MemberAvatar(initials: m.initials, size: 44),
+                          const SizedBox(width: AppSpacing.lg),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  m.displayName,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                Text(
+                                  m.role.label,
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (trip != null &&
+                              trip.myRole.canAdmin &&
+                              !m.role.isOwner)
+                            PopupMenuButton<String>(
+                              onSelected: (String value) =>
+                                  _changeRole(context, m, value),
+                              itemBuilder: (BuildContext context) =>
+                                  <PopupMenuEntry<String>>[
+                                    for (final TripRole role in <TripRole>[
+                                      TripRole.admin,
+                                      TripRole.editor,
+                                      TripRole.viewer,
+                                    ])
+                                      PopupMenuItem<String>(
+                                        value: role.name,
+                                        child: Text('Make ${role.label}'),
+                                      ),
+                                    const PopupMenuDivider(),
+                                    const PopupMenuItem<String>(
+                                      value: 'remove',
+                                      child: Text('Remove from trip'),
+                                    ),
+                                  ],
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            for (final TripMember m in members)
-              AppCard(
-                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: Row(
-                  children: <Widget>[
-                    MemberAvatar(initials: m.initials, size: 44),
-                    const SizedBox(width: AppSpacing.lg),
-                    Expanded(
-                      child: Column(
+            const SizedBox(height: AppSpacing.xxl),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(1)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Text(
+                    'What each role can do',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  for (final TripRole role in TripRole.values)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Text(
-                            m.displayName,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          Text(
-                            m.role.label,
-                            style: Theme.of(context).textTheme.bodySmall,
+                          StatusPill(label: role.label, dense: true),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Text(
+                              role.description,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    if (trip != null && trip.myRole.canAdmin && !m.role.isOwner)
-                      PopupMenuButton<String>(
-                        onSelected: (String value) =>
-                            _changeRole(context, m, value),
-                        itemBuilder: (BuildContext context) =>
-                            <PopupMenuEntry<String>>[
-                              for (final TripRole role in <TripRole>[
-                                TripRole.admin,
-                                TripRole.editor,
-                                TripRole.viewer,
-                              ])
-                                PopupMenuItem<String>(
-                                  value: role.name,
-                                  child: Text('Make ${role.label}'),
-                                ),
-                              const PopupMenuDivider(),
-                              const PopupMenuItem<String>(
-                                value: 'remove',
-                                child: Text('Remove from trip'),
-                              ),
-                            ],
-                      ),
-                  ],
-                ),
+                ],
               ),
-            const SizedBox(height: AppSpacing.xxl),
-            Text(
-              'What each role can do',
-              style: Theme.of(context).textTheme.titleSmall,
             ),
-            const SizedBox(height: AppSpacing.md),
-            for (final TripRole role in TripRole.values)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    StatusPill(label: role.label, dense: true),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Text(
-                        role.description,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: AppSpacing.huge),
           ],
         ),
       ),

@@ -15,6 +15,7 @@ import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/searchable_select.dart';
 import 'expenses_page.dart';
 
@@ -295,8 +296,8 @@ class _AddExpensePageState extends ConsumerState<AddExpensePage> {
     final String? tripId = _tripId ?? ref.watch(selectedTripIdProvider);
 
     if (tripId == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Add expense')),
+      return PageScaffold(
+        title: 'Add expense',
         body: const EmptyState(
           icon: Icons.luggage_outlined,
           title: 'Choose a trip first',
@@ -325,244 +326,309 @@ class _AddExpensePageState extends ConsumerState<AddExpensePage> {
       _payerId = members.first.userId;
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit expense' : 'Add expense'),
-        actions: <Widget>[
-          if (_isEditing)
-            IconButton(
-              onPressed: () => _delete(context, tripId),
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete expense',
-            ),
-        ],
-      ),
+    // The error banner only exists once the form has been submitted, so the
+    // sections below start one step further down the cascade when it shows.
+    final int staggerFrom = _error != null ? 1 : 0;
+
+    // PageScrollView carries the 1080px width cap, the pointer-aware
+    // scrollbar and the bottom clearance, so the form does not stretch across
+    // a desktop monitor and the save button is never hidden.
+    return PageScaffold(
+      title: _isEditing ? 'Edit expense' : 'Add expense',
+      actions: <Widget>[
+        if (_isEditing)
+          IconButton(
+            onPressed: () => _delete(context, tripId),
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Delete expense',
+          ),
+      ],
       body: membersAsync.isLoading
           ? const Center(child: CircularProgressIndicator())
           : Form(
               key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.huge,
-                ),
+              child: PageScrollView(
                 children: <Widget>[
-                  if (_error != null) ...<Widget>[
-                    InlineBanner(message: _error!, tone: StatusTone.danger),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
-
-                  TextFormField(
-                    controller: _title,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'What was it for?',
-                      hintText: 'Dinner at K Lok',
-                      prefixIcon: Icon(Icons.title),
+                  if (_error != null)
+                    FadeSlideIn(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          InlineBanner(
+                            message: _error!,
+                            tone: StatusTone.danger,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                        ],
+                      ),
                     ),
-                    validator: (String? v) => (v == null || v.trim().length < 2)
-                        ? 'Give the expense a name.'
-                        : null,
-                  ),
 
-                  const SizedBox(height: AppSpacing.lg),
-                  MoneyField(
-                    label: 'Amount',
-                    currency: _currency,
-                    controller: _amount,
-                    onCurrencyChanged: (String c) {
-                      setState(() {
-                        _currency = c;
-                        _fxRate = null;
-                      });
-                    },
-                    helperText: 'Enter what was actually paid.',
-                  ),
-
-                  if (trip != null &&
-                      _currency != trip.baseCurrency) ...<Widget>[
-                    const SizedBox(height: AppSpacing.md),
-                    _ConversionRow(
-                      tripCurrency: trip.baseCurrency,
-                      conversion: _conversion,
-                      converting: _converting,
-                      onConvert: () => _convert(trip.baseCurrency),
-                    ),
-                  ],
-
-                  const SizedBox(height: AppSpacing.lg),
-                  SearchableSelect<ExpenseCategory>(
-                    label: 'Category',
-                    icon: Icons.category_outlined,
-                    value: _category,
-                    items: ExpenseCategory.values,
-                    isRequired: true,
-                    // Searching the emoji prefix too means typing a single
-                    // character narrows the list.
-                    labelBuilder: (ExpenseCategory c) =>
-                        '${c.emoji}  ${c.label}',
-                    searchBuilder: (ExpenseCategory c, String q) {
-                      if (q.isEmpty) return true;
-                      final String n = q.toLowerCase().trim();
-                      return c.label.toLowerCase().contains(n) ||
-                          c.id.toLowerCase().contains(n);
-                    },
-                    onChanged: (ExpenseCategory? c) {
-                      if (c != null) setState(() => _category = c);
-                    },
-                  ),
-
-                  const SizedBox(height: AppSpacing.lg),
-                  DateField(
-                    label: 'Date',
-                    value: _date,
-                    firstDate: DateTime(2020),
-                    onChanged: (DateTime d) => setState(() => _date = d),
-                  ),
-
-                  const SizedBox(height: AppSpacing.lg),
-                  SearchableSelect<String>(
-                    label: 'Who paid?',
-                    icon: Icons.account_balance_wallet_outlined,
-                    helperText: 'They are credited the full amount.',
-                    value: members.any((TripMember m) => m.userId == _payerId)
-                        ? _payerId
-                        : (members.isNotEmpty ? members.first.userId : null),
-                    items: <String>[
-                      for (final TripMember m in members) m.userId,
-                    ],
-                    labelBuilder: (String id) => members
-                        .firstWhere((TripMember m) => m.userId == id)
-                        .displayName,
-                    onChanged: (String? v) {
-                      if (v != null) setState(() => _payerId = v);
-                    },
-                  ),
-
-                  const SizedBox(height: AppSpacing.xl),
-                  SwitchListTile(
-                    value: _isPersonal,
-                    onChanged: (bool v) => setState(() {
-                      _isPersonal = v;
-                      if (v) {
-                        _participants = <String>{
-                          if (_payerId.isNotEmpty) _payerId,
-                        };
-                      }
-                    }),
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Personal expense'),
-                    subtitle: const Text(
-                      'Only you are involved. It will not affect anyone else\'s balance.',
-                    ),
-                  ),
-
-                  if (!_isPersonal) ...<Widget>[
-                    const SizedBox(height: AppSpacing.lg),
-                    Text(
-                      'How should it be split?',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(staggerFrom)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        for (final SplitMethod m in <SplitMethod>[
-                          SplitMethod.equal,
-                          SplitMethod.exact,
-                          SplitMethod.percentage,
-                          SplitMethod.shares,
-                        ])
-                          ChoiceChip(
-                            selected: _method == m,
-                            onSelected: (_) => setState(() {
-                              _method = m;
+                        TextFormField(
+                          controller: _title,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'What was it for?',
+                            hintText: 'Dinner at K Lok',
+                            prefixIcon: Icon(Icons.title),
+                          ),
+                          validator:
+                              (String? v) =>
+                                  (v == null || v.trim().length < 2)
+                                  ? 'Give the expense a name.'
+                                  : null,
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+                        MoneyField(
+                          label: 'Amount',
+                          currency: _currency,
+                          controller: _amount,
+                          onCurrencyChanged: (String c) {
+                            setState(() {
+                              _currency = c;
+                              _fxRate = null;
+                            });
+                          },
+                          helperText: 'Enter what was actually paid.',
+                        ),
+
+                        if (trip != null &&
+                            _currency != trip.baseCurrency) ...<Widget>[
+                          const SizedBox(height: AppSpacing.md),
+                          _ConversionRow(
+                            tripCurrency: trip.baseCurrency,
+                            conversion: _conversion,
+                            converting: _converting,
+                            onConvert: () => _convert(trip.baseCurrency),
+                          ),
+                        ],
+
+                        const SizedBox(height: AppSpacing.lg),
+                        SearchableSelect<ExpenseCategory>(
+                          label: 'Category',
+                          icon: Icons.category_outlined,
+                          value: _category,
+                          items: ExpenseCategory.values,
+                          isRequired: true,
+                          // Searching the emoji prefix too means typing a
+                          // single character narrows the list.
+                          labelBuilder:
+                              (ExpenseCategory c) => '${c.emoji}  ${c.label}',
+                          searchBuilder: (ExpenseCategory c, String q) {
+                            if (q.isEmpty) return true;
+                            final String n = q.toLowerCase().trim();
+                            return c.label.toLowerCase().contains(n) ||
+                                c.id.toLowerCase().contains(n);
+                          },
+                          onChanged: (ExpenseCategory? c) {
+                            if (c != null) setState(() => _category = c);
+                          },
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+                        DateField(
+                          label: 'Date',
+                          value: _date,
+                          firstDate: DateTime(2020),
+                          onChanged: (DateTime d) =>
+                              setState(() => _date = d),
+                        ),
+
+                        const SizedBox(height: AppSpacing.lg),
+                        SearchableSelect<String>(
+                          label: 'Who paid?',
+                          icon: Icons.account_balance_wallet_outlined,
+                          helperText: 'They are credited the full amount.',
+                          value:
+                              members.any((TripMember m) => m.userId == _payerId)
+                                  ? _payerId
+                                  : (members.isNotEmpty
+                                        ? members.first.userId
+                                        : null),
+                          items: <String>[
+                            for (final TripMember m in members) m.userId,
+                          ],
+                          labelBuilder: (String id) => members
+                              .firstWhere((TripMember m) => m.userId == id)
+                              .displayName,
+                          onChanged: (String? v) {
+                            if (v != null) setState(() => _payerId = v);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  FadeSlideIn(
+                    delay: Duration(
+                      milliseconds: staggerDelayFor(staggerFrom + 1),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        const SizedBox(height: AppSpacing.xl),
+                        SwitchListTile(
+                          value: _isPersonal,
+                          onChanged: (bool v) => setState(() {
+                            _isPersonal = v;
+                            if (v) {
+                              _participants = <String>{
+                                if (_payerId.isNotEmpty) _payerId,
+                              };
+                            }
+                          }),
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Personal expense'),
+                          subtitle: const Text(
+                            'Only you are involved. It will not affect anyone else\'s balance.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  if (!_isPersonal)
+                    FadeSlideIn(
+                      delay: Duration(
+                        milliseconds: staggerDelayFor(staggerFrom + 2),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          const SizedBox(height: AppSpacing.lg),
+                          Text(
+                            'How should it be split?',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            children: <Widget>[
+                              for (final SplitMethod m in <SplitMethod>[
+                                SplitMethod.equal,
+                                SplitMethod.exact,
+                                SplitMethod.percentage,
+                                SplitMethod.shares,
+                              ])
+                                ChoiceChip(
+                                  selected: _method == m,
+                                  onSelected: (_) => setState(() {
+                                    _method = m;
+                                    _ensureControllers(members);
+                                  }),
+                                  label: Text(m.label),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: AppSpacing.xl),
+                          Text(
+                            'Who was involved?',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          MemberPicker(
+                            members: <({String id, String? subtitle, String name})>[
+                              for (final TripMember m in members)
+                                (
+                                  id: m.userId,
+                                  name: m.displayName,
+                                  subtitle: m.role.label,
+                                ),
+                            ],
+                            selectedIds: _participants,
+                            onChanged: (Set<String> next) => setState(() {
+                              _participants = next;
                               _ensureControllers(members);
                             }),
-                            label: Text(m.label),
+                            helperText: _participants.length < members.length
+                                ? 'Only the selected people share this cost.'
+                                : null,
                           ),
-                      ],
-                    ),
 
-                    const SizedBox(height: AppSpacing.xl),
-                    Text(
-                      'Who was involved?',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    MemberPicker(
-                      members: <({String id, String? subtitle, String name})>[
-                        for (final TripMember m in members)
-                          (
-                            id: m.userId,
-                            name: m.displayName,
-                            subtitle: m.role.label,
+                          if (_method != SplitMethod.equal) ...<Widget>[
+                            const SizedBox(height: AppSpacing.xl),
+                            _MethodInputs(
+                              method: _method,
+                              members: members,
+                              participants: _participants,
+                              currency: _currency,
+                              totalMinor: Money.tryParse(
+                                _amount.text,
+                                _currency,
+                              ).minorUnits,
+                              exactControllers: _exactControllers,
+                              percentControllers: _percentControllers,
+                              weights: _weights,
+                              onChanged: _recalculate,
+                            ),
+                          ],
+
+                          const SizedBox(height: AppSpacing.xl),
+                          _SplitPreview(
+                            preview: _preview,
+                            currency: _currency,
+                            payerId: _payerId,
+                            members: members,
+                            isPersonal: _isPersonal,
                           ),
-                      ],
-                      selectedIds: _participants,
-                      onChanged: (Set<String> next) => setState(() {
-                        _participants = next;
-                        _ensureControllers(members);
-                      }),
-                      helperText: _participants.length < members.length
-                          ? 'Only the selected people share this cost.'
-                          : null,
-                    ),
-
-                    if (_method != SplitMethod.equal) ...<Widget>[
-                      const SizedBox(height: AppSpacing.xl),
-                      _MethodInputs(
-                        method: _method,
-                        members: members,
-                        participants: _participants,
-                        currency: _currency,
-                        totalMinor: Money.tryParse(
-                          _amount.text,
-                          _currency,
-                        ).minorUnits,
-                        exactControllers: _exactControllers,
-                        percentControllers: _percentControllers,
-                        weights: _weights,
-                        onChanged: _recalculate,
+                        ],
                       ),
-                    ],
-
-                    const SizedBox(height: AppSpacing.xl),
-                    _SplitPreview(
-                      preview: _preview,
-                      currency: _currency,
-                      payerId: _payerId,
-                      members: members,
-                      isPersonal: _isPersonal,
                     ),
-                  ],
 
-                  const SizedBox(height: AppSpacing.xl),
-                  TextFormField(
-                    controller: _notes,
-                    maxLines: 3,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Notes',
-                      hintText: 'Anything the group should know',
-                      prefixIcon: Icon(Icons.notes),
-                      alignLabelWithHint: true,
+                  FadeSlideIn(
+                    delay: Duration(
+                      milliseconds: staggerDelayFor(staggerFrom + 3),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        const SizedBox(height: AppSpacing.xl),
+                        TextFormField(
+                          controller: _notes,
+                          maxLines: 3,
+                          textCapitalization: TextCapitalization.sentences,
+                          decoration: const InputDecoration(
+                            labelText: 'Notes',
+                            hintText: 'Anything the group should know',
+                            prefixIcon: Icon(Icons.notes),
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
-                  const SizedBox(height: AppSpacing.xxl),
-                  FilledButton(
-                    onPressed: _busy ? null : () => _save(members),
-                    child: _busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_isEditing ? 'Save changes' : 'Add expense'),
+                  FadeSlideIn(
+                    delay: Duration(
+                      milliseconds: staggerDelayFor(staggerFrom + 4),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        const SizedBox(height: AppSpacing.xxl),
+                        FilledButton(
+                          onPressed: _busy ? null : () => _save(members),
+                          child: _busy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  _isEditing ? 'Save changes' : 'Add expense',
+                                ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

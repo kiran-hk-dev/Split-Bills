@@ -56,19 +56,30 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
       destinationResultsProvider((query: _query, category: _category)),
     );
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(destinationResultsProvider);
-          ref.invalidate(wishlistProvider);
-          await ref.read(wishlistProvider.future);
-        },
-        child: CustomScrollView(
-          slivers: <Widget>[
-            SliverToBoxAdapter(child: _header()),
-            ..._bodySlivers(async),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
-          ],
+    // Explore is a tab root, so the arrow PageScaffold would add by default
+    // would only ever pop the shell's own route. The page supplies its own
+    // header with PageHeader below, which is where the title and actions live.
+    return PageScaffold(
+      showBackButton: false,
+      body: PageBody(
+        // Zero, because every section in this sliver list already applies its
+        // own AppSpacing.lg gutter and stacking both doubles it on a phone.
+        padding: EdgeInsets.zero,
+        child: ScrollAwareShell(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(destinationResultsProvider);
+              ref.invalidate(wishlistProvider);
+              await ref.read(wishlistProvider.future);
+            },
+            child: CustomScrollView(
+              slivers: <Widget>[
+                SliverToBoxAdapter(child: FadeSlideIn(child: _header())),
+                ..._bodySlivers(async),
+                const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -168,34 +179,49 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   List<Widget> _bodySlivers(AsyncValue<List<Destination>> async) {
     if (_showSaved) {
       // Deliberately no flex in this branch. The Column shrink-wraps and the
-      // enclosing sliver list already scrolls.
-      return const <Widget>[
+      // enclosing sliver list already scrolls. FadeSlideIn is a proxy box, so
+      // it does not reintroduce one either.
+      return <Widget>[
         SliverToBoxAdapter(
-          child: SectionHeader(
-            title: 'Saved destinations',
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child: const SectionHeader(
+              title: 'Saved destinations',
+              padding: EdgeInsets.only(bottom: AppSpacing.md),
+            ),
           ),
         ),
-        SliverToBoxAdapter(child: _SavedList()),
+        SliverToBoxAdapter(
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
+            child: const _SavedList(),
+          ),
+        ),
       ];
     }
 
     return async.when(
-      loading: () => const <Widget>[
+      loading: () => <Widget>[
         SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: SkeletonCard(lines: 3),
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child: const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: SkeletonCard(lines: 3),
+            ),
           ),
         ),
       ],
       error: (Object err, StackTrace _) => <Widget>[
         SliverToBoxAdapter(
-          child: SizedBox(
-            height: _stateHeight,
-            child: ErrorStateView(
-              message: 'Could not load destinations.',
-              onRetry: () => ref.invalidate(destinationResultsProvider),
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child: SizedBox(
+              height: _stateHeight,
+              child: ErrorStateView(
+                message: 'Could not load destinations.',
+                onRetry: () => ref.invalidate(destinationResultsProvider),
+              ),
             ),
           ),
         ),
@@ -204,14 +230,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
         if (results.isEmpty) {
           return <Widget>[
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: _stateHeight,
-                child: EmptyState(
-                  icon: Icons.travel_explore,
-                  title: 'No destinations match',
-                  message: _query.isEmpty
-                      ? 'Nothing is listed under that category yet.'
-                      : 'Nothing found for that search. Try a country or city name.',
+              child: FadeSlideIn(
+                delay: Duration(milliseconds: staggerDelayFor(1)),
+                child: SizedBox(
+                  height: _stateHeight,
+                  child: EmptyState(
+                    icon: Icons.travel_explore,
+                    title: 'No destinations match',
+                    message: _query.isEmpty
+                        ? 'Nothing is listed under that category yet.'
+                        : 'Nothing found for that search. Try a country or city name.',
+                  ),
                 ),
               ),
             ),

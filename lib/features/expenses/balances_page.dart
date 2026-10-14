@@ -14,6 +14,7 @@ import '../../router/providers.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 final balancesProvider = FutureProvider.autoDispose
     .family<List<MemberBalance>, String>((Ref ref, String tripId) async {
@@ -47,17 +48,18 @@ class BalancesPage extends ConsumerWidget {
     final String currency =
         tripAsync.value?.baseCurrency ?? Currencies.defaultCode;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Balances'),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => context.push('/trips/$tripId/reports'),
-            icon: const Icon(Icons.bar_chart_outlined),
-            tooltip: 'Reports',
-          ),
-        ],
-      ),
+    // PageScrollView supplies the 1080px width cap and the bottom clearance that
+    // keeps the last settlement card clear of the shell's navigation bar. The
+    // RefreshIndicator stays outside it so it still sees the scroll updates.
+    return PageScaffold(
+      title: 'Balances',
+      actions: <Widget>[
+        IconButton(
+          onPressed: () => context.push('/trips/$tripId/reports'),
+          icon: const Icon(Icons.bar_chart_outlined),
+          tooltip: 'Reports',
+        ),
+      ],
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(balancesProvider(tripId));
@@ -65,21 +67,31 @@ class BalancesPage extends ConsumerWidget {
           ref.invalidate(settlementsProvider(tripId));
           await ref.read(balancesProvider(tripId).future);
         },
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        child: PageScrollView(
           children: <Widget>[
-            const InlineBanner(
-              message: 'A settlement you record here is a note that a payment happened. TripSplit does not move money and cannot confirm that money arrived — that needs a bank or payment provider.',
-              tone: StatusTone.info,
-              icon: Icons.info_outline,
+            const FadeSlideIn(
+              child: InlineBanner(
+                message:
+                    'A settlement you record here is a note that a payment happened. TripSplit does not move money and cannot confirm that money arrived — that needs a bank or payment provider.',
+                tone: StatusTone.info,
+                icon: Icons.info_outline,
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            _BalanceSection(tripId: tripId, currency: currency),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(1)),
+              child: _BalanceSection(tripId: tripId, currency: currency),
+            ),
             const SizedBox(height: AppSpacing.xl),
-            _SuggestionSection(tripId: tripId, currency: currency),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(2)),
+              child: _SuggestionSection(tripId: tripId, currency: currency),
+            ),
             const SizedBox(height: AppSpacing.xl),
-            _HistorySection(tripId: tripId, currency: currency),
-            const SizedBox(height: AppSpacing.huge),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(3)),
+              child: _HistorySection(tripId: tripId, currency: currency),
+            ),
           ],
         ),
       ),
@@ -144,11 +156,14 @@ class _BalanceSection extends ConsumerWidget {
                         Row(
                           children: <Widget>[
                             MemberAvatar(
-                              initials: (names[b.memberId] ?? '?').substring(
-                                0,
-                                1,
-                              ),
+                              // MemberAvatar normalises and shortens the
+                              // initials itself. Taking substring(0, 1) here
+                              // threw a RangeError whenever the member had no
+                              // display name — the same crash that was fixed in
+                              // expenses_page and add_expense_page.
+                              initials: names[b.memberId] ?? '?',
                               size: 40,
+                              semanticLabel: names[b.memberId],
                             ),
                             const SizedBox(width: AppSpacing.lg),
                             Expanded(

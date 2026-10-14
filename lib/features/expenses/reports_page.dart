@@ -15,6 +15,7 @@ import '../../data/repositories.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/reports_export.dart';
 import 'balances_page.dart';
 
@@ -40,77 +41,101 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final Trip? trip = tripAsync.value;
     final String currency = trip?.baseCurrency ?? Currencies.defaultCode;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+    // PageScrollView carries the 1080px width cap and the bottom clearance, so
+    // the charts stop stretching across a desktop monitor and the export card
+    // is never hidden behind the shell's navigation bar.
+    return PageScaffold(
+      title: 'Reports',
+      body: PageScrollView(
         children: <Widget>[
-          AppCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Date range',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: DateField(
-                        label: 'From',
-                        value: _range.start,
-                        firstDate: DateTime(2020),
-                        onChanged: (DateTime d) => setState(
-                          () =>
-                              _range = DateTimeRange(start: d, end: _range.end),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: DateField(
-                        label: 'To',
-                        value: _range.end,
-                        firstDate: DateTime(2020),
-                        onChanged: (DateTime d) => setState(
-                          () => _range = DateTimeRange(
-                            start: _range.start,
-                            end: d,
+          FadeSlideIn(
+            child: AppCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Date range',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: DateField(
+                          label: 'From',
+                          value: _range.start,
+                          firstDate: DateTime(2020),
+                          onChanged: (DateTime d) => setState(
+                            () => _range = DateTimeRange(
+                              start: d,
+                              end: _range.end,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Reports always reflect the stored records, filtered to this range.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: DateField(
+                          label: 'To',
+                          value: _range.end,
+                          firstDate: DateTime(2020),
+                          onChanged: (DateTime d) => setState(
+                            () => _range = DateTimeRange(
+                              start: _range.start,
+                              end: d,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Reports always reflect the stored records, filtered to this range.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          _CategoryChart(
-            tripId: widget.tripId,
-            currency: currency,
-            range: _range,
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child: _CategoryChart(
+              tripId: widget.tripId,
+              currency: currency,
+              range: _range,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          _DailyChart(tripId: widget.tripId, currency: currency, range: _range),
-          const SizedBox(height: AppSpacing.lg),
-          _TravelerTable(tripId: widget.tripId, currency: currency),
-          const SizedBox(height: AppSpacing.lg),
-          _ExportCard(
-            tripId: widget.tripId,
-            tripName: trip?.name ?? 'Trip',
-            currency: currency,
-            range: _range,
-            busy: _busy,
-            onBusy: (bool v) => setState(() => _busy = v),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
+            child: _DailyChart(
+              tripId: widget.tripId,
+              currency: currency,
+              range: _range,
+            ),
           ),
-          const SizedBox(height: AppSpacing.huge),
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(3)),
+            child: _TravelerTable(
+              tripId: widget.tripId,
+              currency: currency,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(4)),
+            child: _ExportCard(
+              tripId: widget.tripId,
+              tripName: trip?.name ?? 'Trip',
+              currency: currency,
+              range: _range,
+              busy: _busy,
+              onBusy: (bool v) => setState(() => _busy = v),
+            ),
+          ),
         ],
       ),
     );

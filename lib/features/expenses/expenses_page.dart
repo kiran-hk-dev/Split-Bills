@@ -13,6 +13,7 @@ import '../../router/providers.dart';
 import '../../shared/widgets/form_fields.dart';
 import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Expense filters. Uses a [Notifier] rather than the legacy `StateProvider`
 /// so it survives Riverpod 3 and can be extended later.
@@ -46,6 +47,11 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
   static const int _pageSize = 30;
   final List<Expense> _loaded = <Expense>[];
 
+  /// Space kept under the last row. This page carries an extended FAB as well
+  /// as the shell's navigation bar, so it needs more than the 96 a plain list
+  /// would.
+  static const double _bottomClearance = 128;
+
   String? get _tripId => widget.tripId ?? ref.watch(selectedTripIdProvider);
 
   @override
@@ -63,17 +69,20 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
     final String? tripId = _tripId;
     final ExpenseFilters filters = ref.watch(expenseFiltersProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => context.push('/expenses/new'),
-            icon: const Icon(Icons.add),
-            tooltip: 'Add expense',
-          ),
-        ],
-      ),
+    // PageBody carries the 1080px width cap so the list stops stretching across
+    // a desktop monitor. padding is zero because the filter bar and both list
+    // branches below already apply their own AppSpacing.lg gutter.
+    return PageScaffold(
+      // A tab root: there is nothing behind this page to go back to.
+      showBackButton: false,
+      title: 'Expenses',
+      actions: <Widget>[
+        IconButton(
+          onPressed: () => context.push('/expenses/new'),
+          icon: const Icon(Icons.add),
+          tooltip: 'Add expense',
+        ),
+      ],
       floatingActionButton: tripId == null
           ? null
           : FloatingActionButton.extended(
@@ -81,14 +90,30 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
               icon: const Icon(Icons.add),
               label: const Text('Add expense'),
             ),
-      body: tripId == null
-          ? const _PickTripPrompt()
-          : Column(
-              children: <Widget>[
-                _FilterBar(tripId: tripId, filters: filters, compact: _compact),
-                Expanded(child: _buildList(tripId, filters)),
-              ],
-            ),
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: tripId == null
+            ? const _PickTripPrompt()
+            : Column(
+                children: <Widget>[
+                  FadeSlideIn(
+                    child: _FilterBar(
+                      tripId: tripId,
+                      filters: filters,
+                      compact: _compact,
+                    ),
+                  ),
+                  Expanded(
+                    child: FadeSlideIn(
+                      delay: Duration(milliseconds: staggerDelayFor(1)),
+                      child: ScrollAwareShell(
+                        child: _buildList(tripId, filters),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -104,7 +129,7 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
           AppSpacing.lg,
           AppSpacing.md,
           AppSpacing.lg,
-          AppSpacing.huge,
+          _bottomClearance,
         ),
         itemCount: all.length,
         itemBuilder: (BuildContext context, int i) =>
@@ -127,7 +152,12 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
           );
           return async.when(
             loading: () => ListView(
-              padding: EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                _bottomClearance,
+              ),
               children: <Widget>[
                 SkeletonCard(lines: 3),
                 SkeletonCard(lines: 3),
@@ -145,7 +175,7 @@ class _ExpensesPageState extends ConsumerState<ExpensesPage> {
                   AppSpacing.lg,
                   AppSpacing.md,
                   AppSpacing.lg,
-                  AppSpacing.huge,
+                  _bottomClearance,
                 ),
                 itemCount: all.length + (page.length >= _pageSize ? 1 : 0),
                 itemBuilder: (BuildContext context, int i) {

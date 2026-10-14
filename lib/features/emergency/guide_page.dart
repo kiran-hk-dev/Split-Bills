@@ -9,6 +9,7 @@ import '../../data/models/reference.dart';
 import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import 'emergency_center_page.dart';
 import 'emergency_data.dart';
 
@@ -31,8 +32,8 @@ class EmergencyGuidePage extends ConsumerWidget {
     // Without a server there is nothing to fetch: the bundled copy is the
     // whole answer, and the guide is already offline-capable.
     if (!SupabaseService.isInitialised) {
-      return Scaffold(
-        appBar: AppBar(title: Text(bundled?.title ?? 'Emergency guide')),
+      return PageScaffold(
+        title: bundled?.title ?? 'Emergency guide',
         body: _GuideBody(
           guide: bundled,
           contacts: _contactsFor(bundled),
@@ -41,8 +42,8 @@ class EmergencyGuidePage extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(bundled?.title ?? 'Emergency guide')),
+    return PageScaffold(
+      title: bundled?.title ?? 'Emergency guide',
       body: FutureBuilder<EmergencyGuide?>(
         future: ref
             .watch(tripRepositoryProvider)
@@ -130,112 +131,156 @@ class _GuideBodyState extends State<_GuideBody> {
       ...guide.phrases.keys.where((String k) => k != 'en'),
     ];
 
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    // PageScrollView carries the width cap, the pointer-aware scrollbar and
+    // the bottom clearance, so none of them have to be re-derived here. The
+    // trailing clearance is what stops the danger banner at the foot of the
+    // guide from being hidden behind the navigation bar.
+    return PageScrollView(
       children: <Widget>[
-        Text(guide.title, style: theme.textTheme.headlineSmall),
-        if (guide.summary != null) ...<Widget>[
-          const SizedBox(height: AppSpacing.sm),
-          Text(guide.summary!, style: theme.textTheme.bodyMedium),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        InlineBanner(
-          message: guide.verification.label == 'Verified'
-              ? 'Verified against the source shown below. Still confirm details with local '
-                    'authorities — situations change.'
-              : '${guide.verification.label}. Confirm every detail with the official source '
-                    'before you rely on it.',
-          tone: guide.verification.isTrusted
-              ? StatusTone.positive
-              : StatusTone.warning,
-          icon: guide.verification.isTrusted
-              ? Icons.verified
-              : Icons.info_outline,
+        FadeSlideIn(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(guide.title, style: theme.textTheme.headlineSmall),
+              if (guide.summary != null) ...<Widget>[
+                const SizedBox(height: AppSpacing.sm),
+                Text(guide.summary!, style: theme.textTheme.bodyMedium),
+              ],
+            ],
+          ),
         ),
 
         const SizedBox(height: AppSpacing.lg),
-        _StepProgress(current: _step, total: steps.length),
-
-        const SizedBox(height: AppSpacing.lg),
-        if (steps.isNotEmpty)
-          _StepCard(
-            step: steps[_step.clamp(0, steps.length - 1)],
-            index: _step,
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(1)),
+          child: InlineBanner(
+            message: guide.verification.label == 'Verified'
+                ? 'Verified against the source shown below. Still confirm details with local '
+                      'authorities — situations change.'
+                : '${guide.verification.label}. Confirm every detail with the official source '
+                      'before you rely on it.',
+            tone: guide.verification.isTrusted
+                ? StatusTone.positive
+                : StatusTone.warning,
+            icon: guide.verification.isTrusted
+                ? Icons.verified
+                : Icons.info_outline,
           ),
+        ),
 
         const SizedBox(height: AppSpacing.lg),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _step == 0 ? null : () => setState(() => _step--),
-                child: const Text('Previous'),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(2)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              _StepProgress(current: _step, total: steps.length),
+
+              const SizedBox(height: AppSpacing.lg),
+              if (steps.isNotEmpty)
+                _StepCard(
+                  step: steps[_step.clamp(0, steps.length - 1)],
+                  index: _step,
+                ),
+
+              const SizedBox(height: AppSpacing.lg),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _step == 0
+                          ? null
+                          : () => setState(() => _step--),
+                      child: const Text('Previous'),
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _step >= steps.length - 1
+                          ? null
+                          : () => setState(() => _step++),
+                      child: Text(
+                        _step >= steps.length - 1 ? 'Done' : 'Next step',
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: FilledButton(
-                onPressed: _step >= steps.length - 1
-                    ? null
-                    : () => setState(() => _step++),
-                child: Text(_step >= steps.length - 1 ? 'Done' : 'Next step'),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
 
         if (_step >= steps.length - 1) ...<Widget>[
           const SizedBox(height: AppSpacing.xxl),
-          const SectionHeader(
-            title: 'Show this to someone who speaks the local language',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(
-            spacing: AppSpacing.sm,
-            children: <Widget>[
-              for (final String lang in languages)
-                ChoiceChip(
-                  selected: _language == lang,
-                  onSelected: (_) => setState(() => _language = lang),
-                  label: Text(_languageLabel(lang)),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(3)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SectionHeader(
+                  title: 'Show this to someone who speaks the local language',
                 ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          PhraseCard(phrases: guide.phrasesFor(_language), language: _language),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  children: <Widget>[
+                    for (final String lang in languages)
+                      ChoiceChip(
+                        selected: _language == lang,
+                        onSelected: (_) => setState(() => _language = lang),
+                        label: Text(_languageLabel(lang)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                PhraseCard(
+                  phrases: guide.phrasesFor(_language),
+                  language: _language,
+                ),
 
-          const SizedBox(height: AppSpacing.xxl),
-          SectionHeader(
-            title: guide.countryCode == null
-                ? 'Emergency contacts'
-                : 'Emergency contacts (${guide.countryCode})',
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          ),
-          _GuideContacts(
-            countryCode: guide.countryCode,
-            contacts: widget.contacts,
-            fallback: widget.fallbackContacts,
+                const SizedBox(height: AppSpacing.xxl),
+                SectionHeader(
+                  title: guide.countryCode == null
+                      ? 'Emergency contacts'
+                      : 'Emergency contacts (${guide.countryCode})',
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                ),
+                _GuideContacts(
+                  countryCode: guide.countryCode,
+                  contacts: widget.contacts,
+                  fallback: widget.fallbackContacts,
+                ),
+              ],
+            ),
           ),
         ],
 
         const SizedBox(height: AppSpacing.xl),
-        if (guide.sourceOrg != null || guide.sourceUrl != null)
-          SourceFooter(
-            sourceOrg: guide.sourceOrg ?? 'Official guidance',
-            sourceUrl: guide.sourceUrl ?? '',
-            lastVerifiedAt: guide.lastVerifiedAt,
-            reviewDueAt: guide.reviewDueAt,
-          ),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(4)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (guide.sourceOrg != null || guide.sourceUrl != null)
+                SourceFooter(
+                  sourceOrg: guide.sourceOrg ?? 'Official guidance',
+                  sourceUrl: guide.sourceUrl ?? '',
+                  lastVerifiedAt: guide.lastVerifiedAt,
+                  reviewDueAt: guide.reviewDueAt,
+                ),
 
-        const SizedBox(height: AppSpacing.lg),
-        const InlineBanner(
-          message:
-              'If you are in danger right now, contact local emergency services before '
-              'reading further. TripSplit cannot contact anyone on your behalf.',
-          tone: StatusTone.danger,
-          icon: Icons.priority_high,
+              const SizedBox(height: AppSpacing.lg),
+              const InlineBanner(
+                message:
+                    'If you are in danger right now, contact local emergency services before '
+                    'reading further. TripSplit cannot contact anyone on your behalf.',
+                tone: StatusTone.danger,
+                icon: Icons.priority_high,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: AppSpacing.huge),
       ],
     );
   }

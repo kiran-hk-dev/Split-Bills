@@ -12,6 +12,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 import 'account_actions.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -123,180 +124,251 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final AsyncValue<Profile?> async = ref.watch(profileProvider);
     final Profile? profile = async.value;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+    // PageScrollView carries the width cap, the gutter and the bottom clearance,
+    // so the Save button and the demo-mode banner stay clear of the shell's
+    // navigation bar instead of sitting under it.
+    return PageScaffold(
+      title: 'Settings',
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+          : PageScrollView(
               children: <Widget>[
-                TextFormField(
-                  controller: _name,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  initialValue: _currency,
-                  decoration: const InputDecoration(
-                    labelText: 'Preferred currency',
-                    prefixIcon: Icon(Icons.payments_outlined),
-                  ),
-                  items: <DropdownMenuItem<String>>[
-                    for (final Currency c in Currencies.all)
-                      DropdownMenuItem<String>(
-                        value: c.code,
-                        child: Text('${c.code} — ${c.name}'),
+                FadeSlideIn(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextFormField(
+                        controller: _name,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          prefixIcon: Icon(Icons.person_outline),
+                        ),
                       ),
-                  ],
-                  onChanged: (String? v) =>
-                      setState(() => _currency = v ?? _currency),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'This only affects how amounts are displayed. Every trip keeps its own '
-                  'currency, and stored expenses are never revalued.',
-                  style: Theme.of(context).textTheme.bodySmall,
+                      const SizedBox(height: AppSpacing.lg),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _currency,
+                        decoration: const InputDecoration(
+                          labelText: 'Preferred currency',
+                          prefixIcon: Icon(Icons.payments_outlined),
+                        ),
+                        items: <DropdownMenuItem<String>>[
+                          for (final Currency c in Currencies.all)
+                            DropdownMenuItem<String>(
+                              value: c.code,
+                              child: Text('${c.code} — ${c.name}'),
+                            ),
+                        ],
+                        onChanged: (String? v) =>
+                            setState(() => _currency = v ?? _currency),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        'This only affects how amounts are displayed. Every trip keeps its own '
+                        'currency, and stored expenses are never revalued.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: AppSpacing.xxl),
-                _Header(text: 'Notifications'),
-                for (final MapEntry<String, ({String body, String title})> e
-                    in _notificationPrefs.entries)
-                  SwitchListTile(
-                    value: profile?.isNotificationEnabled(e.key) ?? true,
-                    onChanged: (bool v) => _toggle(e.key, v),
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(e.value.title),
-                    subtitle: Text(
-                      e.value.body,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-
-                const SizedBox(height: AppSpacing.xl),
-                _Header(text: 'Passport reminder'),
-                Text(
-                  'TripSplit never asks for or stores your passport number. This date is '
-                  'only used to warn you before common six-month validity rules bite.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: <Widget>[
-                    Expanded(
-                      child: DateField(
-                        label: _passportExpiry == null
-                            ? 'Passport expiry'
-                            : 'Expires ${_passportExpiry!.toIso8601String().substring(0, 10)}',
-                        value:
-                            _passportExpiry ??
-                            DateTime.now().add(const Duration(days: 365 * 5)),
-                        firstDate: DateTime.now().subtract(
-                          const Duration(days: 365 * 15),
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(1)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Notifications'),
+                      for (final MapEntry<String, ({String body, String title})>
+                          e
+                          in _notificationPrefs.entries)
+                        SwitchListTile(
+                          value: profile?.isNotificationEnabled(e.key) ?? true,
+                          onChanged: (bool v) => _toggle(e.key, v),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(e.value.title),
+                          subtitle: Text(
+                            e.value.body,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ),
-                        lastDate: DateTime.now().add(
-                          const Duration(days: 365 * 15),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(2)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Passport reminder'),
+                      Text(
+                        'TripSplit never asks for or stores your passport number. This date is '
+                        'only used to warn you before common six-month validity rules bite.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: DateField(
+                              label: _passportExpiry == null
+                                  ? 'Passport expiry'
+                                  : 'Expires ${_passportExpiry!.toIso8601String().substring(0, 10)}',
+                              value:
+                                  _passportExpiry ??
+                                  DateTime.now().add(
+                                    const Duration(days: 365 * 5),
+                                  ),
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 365 * 15),
+                              ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 365 * 15),
+                              ),
+                              onChanged: (DateTime d) =>
+                                  setState(() => _passportExpiry = d),
+                            ),
+                          ),
+                          if (_passportExpiry != null)
+                            IconButton(
+                              onPressed: () =>
+                                  setState(() => _passportExpiry = null),
+                              icon: const Icon(Icons.clear),
+                              tooltip: 'Clear',
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(3)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Emergency contact'),
+                      TextField(
+                        controller: _emergencyName,
+                        decoration: const InputDecoration(
+                          labelText: 'Name',
+                          prefixIcon: Icon(Icons.person_outline),
                         ),
-                        onChanged: (DateTime d) =>
-                            setState(() => _passportExpiry = d),
                       ),
-                    ),
-                    if (_passportExpiry != null)
-                      IconButton(
-                        onPressed: () => setState(() => _passportExpiry = null),
-                        icon: const Icon(Icons.clear),
-                        tooltip: 'Clear',
+                      const SizedBox(height: AppSpacing.md),
+                      TextField(
+                        controller: _emergencyPhone,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone',
+                          prefixIcon: Icon(Icons.phone_outlined),
+                        ),
                       ),
-                  ],
-                ),
-
-                const SizedBox(height: AppSpacing.xl),
-                _Header(text: 'Emergency contact'),
-                TextField(
-                  controller: _emergencyName,
-                  decoration: const InputDecoration(
-                    labelText: 'Name',
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                TextField(
-                  controller: _emergencyPhone,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone',
-                    prefixIcon: Icon(Icons.phone_outlined),
+                    ],
                   ),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
-                _Header(text: 'Offline'),
-                const OfflineCard(),
-
-                const SizedBox(height: AppSpacing.xl),
-                _Header(text: 'Account'),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.logout),
-                  title: const Text('Sign out'),
-                  subtitle: Text(
-                    _demoMode
-                        ? 'Demo mode has no real session'
-                        : 'Ends this session on this device',
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(4)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Offline'),
+                      const OfflineCard(),
+                    ],
                   ),
-                  onTap: () => _signOut(context, ref),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
-                _Header(text: 'Privacy'),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.file_download_outlined),
-                  title: const Text('Export my data'),
-                  subtitle: const Text(
-                    'Everything TripSplit holds about you, as JSON',
+                // Sign out is deliberately above Delete my account: ending a
+                // session is routine, deleting an account is not, and a test
+                // pins that order.
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(5)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Account'),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.logout),
+                        title: const Text('Sign out'),
+                        subtitle: Text(
+                          _demoMode
+                              ? 'Demo mode has no real session'
+                              : 'Ends this session on this device',
+                        ),
+                        onTap: () => _signOut(context, ref),
+                      ),
+                    ],
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _export(context, ref),
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  title: Text(
-                    'Delete my account',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  subtitle: const Text(
-                    'Removes your profile and the trips you own',
-                  ),
-                  onTap: () => _deleteAccount(context, ref),
                 ),
 
                 const SizedBox(height: AppSpacing.xl),
-                FilledButton(
-                  onPressed: _save,
-                  child: const Text('Save settings'),
-                ),
-                if (_demoMode) ...<Widget>[
-                  const SizedBox(height: AppSpacing.md),
-                  const InlineBanner(
-                    message:
-                        'Demo mode is active. Nothing you change here is saved, and no '
-                        'network requests are made.',
-                    tone: StatusTone.warning,
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(6)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _Header(text: 'Privacy'),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.file_download_outlined),
+                        title: const Text('Export my data'),
+                        subtitle: const Text(
+                          'Everything TripSplit holds about you, as JSON',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => _export(context, ref),
+                      ),
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                        title: Text(
+                          'Delete my account',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Removes your profile and the trips you own',
+                        ),
+                        onTap: () => _deleteAccount(context, ref),
+                      ),
+                    ],
                   ),
-                ],
-                const SizedBox(height: AppSpacing.huge),
+                ),
+
+                const SizedBox(height: AppSpacing.xl),
+                FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(7)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      FilledButton(
+                        onPressed: _save,
+                        child: const Text('Save settings'),
+                      ),
+                      if (_demoMode) ...<Widget>[
+                        const SizedBox(height: AppSpacing.md),
+                        const InlineBanner(
+                          message:
+                              'Demo mode is active. Nothing you change here is saved, and no '
+                              'network requests are made.',
+                          tone: StatusTone.warning,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
     );

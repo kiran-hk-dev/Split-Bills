@@ -12,6 +12,7 @@ import '../../data/models/trip.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 final budgetProvider = FutureProvider.autoDispose.family<Budget, String>((
   Ref ref,
@@ -56,18 +57,16 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
   Widget build(BuildContext context) {
     final AsyncValue<Budget> async = ref.watch(budgetProvider(widget.tripId));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budget'),
-        actions: <Widget>[
-          if (async.hasValue)
-            IconButton(
-              onPressed: () => setState(() => _editing = !_editing),
-              icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
-              tooltip: _editing ? 'Cancel' : 'Edit budget',
-            ),
-        ],
-      ),
+    return PageScaffold(
+      title: 'Budget',
+      actions: <Widget>[
+        if (async.hasValue)
+          IconButton(
+            onPressed: () => setState(() => _editing = !_editing),
+            icon: Icon(_editing ? Icons.close : Icons.edit_outlined),
+            tooltip: _editing ? 'Cancel' : 'Edit budget',
+          ),
+      ],
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object err, StackTrace _) => ErrorStateView(
@@ -90,118 +89,146 @@ class _BudgetPageState extends ConsumerState<BudgetPage> {
       ).format(locale: 'en');
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+    // PageScrollView supplies the width cap, the gutter and the bottom clearance,
+    // so this list no longer carries padding of its own.
+    return PageScrollView(
       children: <Widget>[
-        if (_editing) ...<Widget>[
-          MoneyField(
-            label: 'Total trip budget',
-            currency: currency,
-            controller: _total,
-            helperText: 'The amount you plan to spend in total.',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          MoneyField(
-            label: 'Contingency reserve',
-            currency: currency,
-            controller: _contingency,
-            helperText: 'Held back for the unexpected. Not counted in category budgets.',
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton(
-            onPressed: _busy
-                ? null
-                : () async {
-                    setState(() => _busy = true);
-                    try {
-                      await ref
-                          .read(tripRepositoryProvider)
-                          .budget
-                          .updateTotals(
-                            widget.tripId,
-                            totalMinor: Money.tryParse(
-                              _total.text,
-                              currency,
-                            ).minorUnits,
-                            contingencyMinor: Money.tryParse(
-                              _contingency.text,
-                              currency,
-                            ).minorUnits,
-                          );
-                      ref.invalidate(budgetProvider(widget.tripId));
-                      if (context.mounted) {
-                        setState(() => _editing = false);
-                        showFeedback(context, 'Budget updated.');
-                      }
-                    } catch (err) {
-                      if (context.mounted) {
-                        showFeedback(
-                          context,
-                          err is RepositoryException ? err.message : '$err',
-                          isError: true,
-                        );
-                      }
-                    } finally {
-                      if (mounted) setState(() => _busy = false);
-                    }
-                  },
-            child: const Text('Save budget'),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-        ],
-
-        _SummaryCard(budget: budget),
-
-        const SizedBox(height: AppSpacing.lg),
-        if (budget.unallocatedMinor != 0)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-            child: InlineBanner(
-              tone: budget.unallocatedMinor > 0
-                  ? StatusTone.warning
-                  : StatusTone.danger,
-              message: budget.unallocatedMinor > 0
-                  ? '${Money(budget.unallocatedMinor, currency).format()} is not allocated to any '
-                        'category yet.'
-                  : 'Category budgets exceed the trip total by '
-                        '${Money(-budget.unallocatedMinor, currency).format()}.',
+        if (_editing)
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(0)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                MoneyField(
+                  label: 'Total trip budget',
+                  currency: currency,
+                  controller: _total,
+                  helperText: 'The amount you plan to spend in total.',
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                MoneyField(
+                  label: 'Contingency reserve',
+                  currency: currency,
+                  controller: _contingency,
+                  helperText:
+                      'Held back for the unexpected. Not counted in category budgets.',
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                FilledButton(
+                  onPressed: _busy
+                      ? null
+                      : () async {
+                          setState(() => _busy = true);
+                          try {
+                            await ref
+                                .read(tripRepositoryProvider)
+                                .budget
+                                .updateTotals(
+                                  widget.tripId,
+                                  totalMinor: Money.tryParse(
+                                    _total.text,
+                                    currency,
+                                  ).minorUnits,
+                                  contingencyMinor: Money.tryParse(
+                                    _contingency.text,
+                                    currency,
+                                  ).minorUnits,
+                                );
+                            ref.invalidate(budgetProvider(widget.tripId));
+                            if (context.mounted) {
+                              setState(() => _editing = false);
+                              showFeedback(context, 'Budget updated.');
+                            }
+                          } catch (err) {
+                            if (context.mounted) {
+                              showFeedback(
+                                context,
+                                err is RepositoryException
+                                    ? err.message
+                                    : '$err',
+                                isError: true,
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _busy = false);
+                          }
+                        },
+                  child: const Text('Save budget'),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+              ],
             ),
           ),
 
-        const SectionHeader(
-          title: 'By category',
-          subtitle: 'Planned versus actual, with per-person share',
-          padding: EdgeInsets.only(bottom: AppSpacing.md),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(1)),
+          child: _SummaryCard(budget: budget),
         ),
 
-        for (final BudgetCategoryAllocation c in budget.categories)
-          AppCard(
-            margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: _CategoryRow(
-              allocation: c,
-              currency: currency,
-              travelers: 1,
+        const SizedBox(height: AppSpacing.lg),
+        if (budget.unallocatedMinor != 0)
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+              child: InlineBanner(
+                tone: budget.unallocatedMinor > 0
+                    ? StatusTone.warning
+                    : StatusTone.danger,
+                message: budget.unallocatedMinor > 0
+                    ? '${Money(budget.unallocatedMinor, currency).format()} is not allocated to any '
+                          'category yet.'
+                    : 'Category budgets exceed the trip total by '
+                          '${Money(-budget.unallocatedMinor, currency).format()}.',
+              ),
+            ),
+          ),
+
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(3)),
+          child: const SectionHeader(
+            title: 'By category',
+            subtitle: 'Planned versus actual, with per-person share',
+            padding: EdgeInsets.only(bottom: AppSpacing.md),
+          ),
+        ),
+
+        for (int i = 0; i < budget.categories.length; i++)
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(4 + i)),
+            child: AppCard(
+              margin: const EdgeInsets.only(bottom: AppSpacing.md),
+              child: _CategoryRow(
+                allocation: budget.categories[i],
+                currency: currency,
+                travelers: 1,
+              ),
             ),
           ),
 
         if (budget.categories.isEmpty)
-          const AppCard(
-            child: EmptyState(
-              compact: true,
-              icon: Icons.pie_chart_outline,
-              title: 'No categories yet',
-              message: 'Add categories to see planned versus actual spending at a glance.',
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(4)),
+            child: const AppCard(
+              child: EmptyState(
+                compact: true,
+                icon: Icons.pie_chart_outline,
+                title: 'No categories yet',
+                message:
+                    'Add categories to see planned versus actual spending at a glance.',
+              ),
             ),
           ),
 
         const SizedBox(height: AppSpacing.lg),
-        OutlinedButton.icon(
-          onPressed: () => _allocate(context, ref, budget),
-          icon: const Icon(Icons.add),
-          label: const Text('Allocate a category'),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(5)),
+          child: OutlinedButton.icon(
+            onPressed: () => _allocate(context, ref, budget),
+            icon: const Icon(Icons.add),
+            label: const Text('Allocate a category'),
+          ),
         ),
-
-        const SizedBox(height: AppSpacing.huge),
       ],
     );
   }

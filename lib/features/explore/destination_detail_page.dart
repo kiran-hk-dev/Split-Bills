@@ -35,16 +35,16 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
       destinationProvider(widget.destinationId),
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => setState(() => _showMap = !_showMap),
-            icon: Icon(_showMap ? Icons.map_outlined : Icons.photo_outlined),
-            tooltip: _showMap ? 'Hide map' : 'Show map',
-          ),
-        ],
-      ),
+    // Title stays null: the destination's name is the headline at the top of
+    // the body, and PageScaffold supplies the back arrow and the actions.
+    return PageScaffold(
+      actions: <Widget>[
+        IconButton(
+          onPressed: () => setState(() => _showMap = !_showMap),
+          icon: Icon(_showMap ? Icons.map_outlined : Icons.photo_outlined),
+          tooltip: _showMap ? 'Hide map' : 'Show map',
+        ),
+      ],
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (Object err, StackTrace _) =>
@@ -66,21 +66,33 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
   Widget _body(BuildContext context, Destination d) {
     final ThemeData theme = Theme.of(context);
 
-    return ListView(
-      padding: EdgeInsets.zero,
+    // PageScrollView supplies the width cap, the gutter and the bottom clearance,
+    // so the list no longer carries padding of its own. Each block below is a
+    // top-level child so the sections cascade in rather than arriving at once.
+    return PageScrollView(
       children: <Widget>[
         if (d.imageUrl != null)
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            // Was an `errorBuilder` returning a flat container with nothing in
-            // it, so a broken image rendered as a blank tinted band.
-            child: NetworkArtwork(
-              url: d.imageUrl!,
-              fallbackIcon: Icons.landscape_outlined,
+          FadeSlideIn(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  // Was an `errorBuilder` returning a flat container with nothing
+                  // in it, so a broken image rendered as a blank tinted band.
+                  child: NetworkArtwork(
+                    url: d.imageUrl!,
+                    fallbackIcon: Icons.landscape_outlined,
+                  ),
+                ),
+                // The gap under the artwork used to come from the Padding that
+                // wrapped the whole body, which this layout no longer has.
+                const SizedBox(height: AppSpacing.lg),
+              ],
             ),
           ),
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(1)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
@@ -93,108 +105,125 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
                 const SizedBox(height: AppSpacing.md),
                 Text(d.summary!, style: theme.textTheme.bodyLarge),
               ],
-              const SizedBox(height: AppSpacing.lg),
-
-              if (_showMap && d.hasCoordinates)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: SizedBox(
-                    height: 220,
-                    child: FlutterMap(
-                      mapController: _map,
-                      options: MapOptions(
-                        initialCenter: LatLng(d.latitude!, d.longitude!),
-                        initialZoom: 11,
-                      ),
-                      children: <Widget>[
-                        TileLayer(
-                          urlTemplate: AppConfig.mapTileUrl,
-                          userAgentPackageName: AppConfig.mapUserAgent,
-                        ),
-                        MarkerLayer(
-                          markers: <Marker>[
-                            Marker(
-                              point: LatLng(d.latitude!, d.longitude!),
-                              width: 40,
-                              height: 40,
-                              child: const Icon(
-                                Icons.place,
-                                color: AppColors.danger,
-                                size: 34,
-                              ),
-                            ),
-                          ],
+            ],
+          ),
+        ),
+        if (_showMap && d.hasCoordinates) ...<Widget>[
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: SizedBox(
+                height: 220,
+                child: FlutterMap(
+                  mapController: _map,
+                  options: MapOptions(
+                    initialCenter: LatLng(d.latitude!, d.longitude!),
+                    initialZoom: 11,
+                  ),
+                  children: <Widget>[
+                    TileLayer(
+                      urlTemplate: AppConfig.mapTileUrl,
+                      userAgentPackageName: AppConfig.mapUserAgent,
+                    ),
+                    MarkerLayer(
+                      markers: <Marker>[
+                        Marker(
+                          point: LatLng(d.latitude!, d.longitude!),
+                          width: 40,
+                          height: 40,
+                          child: const Icon(
+                            Icons.place,
+                            color: AppColors.danger,
+                            size: 34,
+                          ),
                         ),
                       ],
-                    ),
-                  ),
-                ),
-
-              if (_showMap && d.hasCoordinates) ...<Widget>[
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Map tiles by ${AppConfig.mapTileAttribution}. Positions come from the '
-                  'TripSplit catalogue and are approximate.',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-
-              const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.lg,
-                runSpacing: AppSpacing.md,
-                children: <Widget>[
-                  _Fact(
-                    icon: Icons.payments_outlined,
-                    label: 'Local currency',
-                    value: d.currency ?? 'Not recorded',
-                  ),
-                  _Fact(
-                    icon: Icons.schedule,
-                    label: 'Time zone',
-                    value: d.timezone ?? 'Not recorded',
-                  ),
-                  _Fact(
-                    icon: Icons.translate,
-                    label: 'Languages',
-                    value: d.languages.isEmpty
-                        ? 'Not recorded'
-                        : d.languages.join(', '),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: AppSpacing.lg),
-              if (d.typicalDailyBudgetMinor != null)
-                InlineBanner(
-                  tone: StatusTone.info,
-                  icon: Icons.pie_chart_outline,
-                  message:
-                      'TripSplit estimates about ${Money(d.typicalDailyBudgetMinor!, d.currency ?? Currencies.defaultCode).format()} '
-                      'per person per day in ${d.currency ?? 'local currency'}. This is an '
-                      'estimate you can edit in your budget, not a quoted price.',
-                ),
-
-              const SizedBox(height: AppSpacing.lg),
-              AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text('When to go', style: theme.textTheme.titleSmall),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(d.seasonalGuidance, style: theme.textTheme.bodyMedium),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'This is general seasonal guidance from the TripSplit catalogue. Weather '
-                      'is not forecast here — check an actual forecast before you book.',
-                      style: theme.textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
-
-              if (d.categories.isNotEmpty) ...<Widget>[
-                const SizedBox(height: AppSpacing.lg),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(3)),
+            child: Text(
+              'Map tiles by ${AppConfig.mapTileAttribution}. Positions come from the '
+              'TripSplit catalogue and are approximate.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(4)),
+          child: Wrap(
+            spacing: AppSpacing.lg,
+            runSpacing: AppSpacing.md,
+            children: <Widget>[
+              _Fact(
+                icon: Icons.payments_outlined,
+                label: 'Local currency',
+                value: d.currency ?? 'Not recorded',
+              ),
+              _Fact(
+                icon: Icons.schedule,
+                label: 'Time zone',
+                value: d.timezone ?? 'Not recorded',
+              ),
+              _Fact(
+                icon: Icons.translate,
+                label: 'Languages',
+                value: d.languages.isEmpty
+                    ? 'Not recorded'
+                    : d.languages.join(', '),
+              ),
+            ],
+          ),
+        ),
+        if (d.typicalDailyBudgetMinor != null) ...<Widget>[
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(5)),
+            child: InlineBanner(
+              tone: StatusTone.info,
+              icon: Icons.pie_chart_outline,
+              message:
+                  'TripSplit estimates about ${Money(d.typicalDailyBudgetMinor!, d.currency ?? Currencies.defaultCode).format()} '
+                  'per person per day in ${d.currency ?? 'local currency'}. This is an '
+                  'estimate you can edit in your budget, not a quoted price.',
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.lg),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(6)),
+          child: AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('When to go', style: theme.textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.sm),
+                Text(d.seasonalGuidance, style: theme.textTheme.bodyMedium),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'This is general seasonal guidance from the TripSplit catalogue. Weather '
+                  'is not forecast here — check an actual forecast before you book.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (d.categories.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.lg),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(7)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
                 Text('Good for', style: theme.textTheme.titleSmall),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
@@ -205,8 +234,15 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
                   ],
                 ),
               ],
-
-              const SizedBox(height: AppSpacing.xl),
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.xl),
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(8)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
               FilledButton.icon(
                 onPressed: () => _save(context, d),
                 icon: Icon(_saved ? Icons.check : Icons.bookmark_add_outlined),
@@ -218,17 +254,18 @@ class _DestinationDetailPageState extends ConsumerState<DestinationDetailPage> {
                 icon: const Icon(Icons.compare_arrows),
                 label: const Text('Compare estimated cost'),
               ),
-
-              const SizedBox(height: AppSpacing.xl),
-              // Was hardcoded to empty strings, which made the card return
-              // SizedBox.shrink() every time — the official safety section was
-              // permanently dead code.
-              _DestinationSafetyCard(
-                countryCode: d.countryCode ?? '',
-                name: d.country ?? d.name,
-              ),
-              const SizedBox(height: AppSpacing.huge),
             ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        // Was hardcoded to empty strings, which made the card return
+        // SizedBox.shrink() every time — the official safety section was
+        // permanently dead code.
+        FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(9)),
+          child: _DestinationSafetyCard(
+            countryCode: d.countryCode ?? '',
+            name: d.country ?? d.name,
           ),
         ),
       ],

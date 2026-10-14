@@ -13,6 +13,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Private document vault.
 ///
@@ -53,74 +54,97 @@ class _DocumentsPageState extends ConsumerState<DocumentsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Documents')),
+    // padding is zero because the banner and the list each apply their own
+    // AppSpacing.lg gutter; PageBody is here only for the 1080px width cap.
+    return PageScaffold(
+      title: 'Documents',
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _upload,
         icon: const Icon(Icons.upload_file),
         label: const Text('Upload'),
       ),
-      body: Column(
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              AppSpacing.md,
-              AppSpacing.lg,
-              0,
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            FadeSlideIn(
+              child: const Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  0,
+                ),
+                child: InlineBanner(
+                  message:
+                      'Documents are stored in a private bucket. Downloads use short-lived links '
+                      'and are never publicly accessible. Avoid uploading identity documents '
+                      'unless you need to.',
+                  tone: StatusTone.info,
+                  icon: Icons.lock_outline,
+                ),
+              ),
             ),
-            child: InlineBanner(
-              message:
-                  'Documents are stored in a private bucket. Downloads use short-lived links '
-                  'and are never publicly accessible. Avoid uploading identity documents '
-                  'unless you need to.',
-              tone: StatusTone.info,
-              icon: Icons.lock_outline,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: FutureBuilder<List<TravelDocument>>(
-              future: _load(),
-              builder:
-                  (
-                    BuildContext context,
-                    AsyncSnapshot<List<TravelDocument>> snapshot,
-                  ) {
-                    if (snapshot.hasError) {
-                      return ErrorStateView(
-                        message: '${snapshot.error}',
-                        onRetry: () => setState(() {}),
-                      );
-                    }
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final List<TravelDocument> docs = snapshot.data!;
-                    if (docs.isEmpty) {
-                      return EmptyState(
-                        icon: Icons.folder_open,
-                        title: 'No documents yet',
-                        message:
-                            'Upload your passport copy, insurance policy, tickets and visas. '
-                            'Everything stays in private storage.',
-                        action: FilledButton.icon(
-                          onPressed: _upload,
-                          icon: const Icon(Icons.upload_file),
-                          label: const Text('Upload a document'),
+            const SizedBox(height: AppSpacing.md),
+            Expanded(
+              child: FutureBuilder<List<TravelDocument>>(
+                future: _load(),
+                builder:
+                    (
+                      BuildContext context,
+                      AsyncSnapshot<List<TravelDocument>> snapshot,
+                    ) {
+                      if (snapshot.hasError) {
+                        return ErrorStateView(
+                          message: '${snapshot.error}',
+                          onRetry: () => setState(() {}),
+                        );
+                      }
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final List<TravelDocument> docs = snapshot.data!;
+                      if (docs.isEmpty) {
+                        return EmptyState(
+                          icon: Icons.folder_open,
+                          title: 'No documents yet',
+                          message:
+                              'Upload your passport copy, insurance policy, tickets and visas. '
+                              'Everything stays in private storage.',
+                          action: FilledButton.icon(
+                            onPressed: _upload,
+                            icon: const Icon(Icons.upload_file),
+                            label: const Text('Upload a document'),
+                          ),
+                        );
+                      }
+                      return ScrollAwareShell(
+                        child: ListView.builder(
+                          // 96 of bottom clearance so the last card is never
+                          // half-hidden behind the navigation bar or the
+                          // upload button.
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            AppSpacing.lg,
+                            AppSpacing.lg,
+                            96,
+                          ),
+                          itemCount: docs.length,
+                          itemBuilder: (BuildContext context, int i) =>
+                              FadeSlideIn(
+                                delay: Duration(
+                                  milliseconds: staggerDelayFor(i),
+                                ),
+                                child: _DocumentCard(document: docs[i]),
+                              ),
                         ),
                       );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      itemCount: docs.length,
-                      itemBuilder: (BuildContext context, int i) =>
-                          _DocumentCard(document: docs[i]),
-                    );
-                  },
+                    },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

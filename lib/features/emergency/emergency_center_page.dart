@@ -11,6 +11,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../router/app_shell.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import 'emergency_data.dart';
 
 /// Emergency hub. Everything here works without an account and, once
@@ -55,101 +56,148 @@ class _EmergencyCenterPageState extends ConsumerState<EmergencyCenterPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: <Widget>[
-          const SliverToBoxAdapter(
-            child: PageHeader(
-              title: 'Travel Assistant',
-              subtitle: 'What to do when something goes wrong abroad',
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  const InlineBanner(
-                    message:
-                        'TripSplit is not a substitute for local authorities, your embassy, '
-                        'legal advice or professional medical care. Confirm details with the '
-                        'official source before you rely on them.',
-                    tone: StatusTone.warning,
-                    icon: Icons.gavel_outlined,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  _CountryCard(
-                    selected: _countryCode,
-                    onChanged: (String c) => setState(() => _countryCode = c),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  if (_countryCode == 'HK')
-                    _HongKongBanner(
-                      onTap: () =>
-                          context.push('/emergency/hong-kong/lost-passport'),
-                    ),
-
-                  SectionHeader(
-                    title: 'Emergency contacts',
-                    subtitle:
-                        'For $_countryCode — always shown with its source',
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    action: IconButton(
-                      onPressed: _download,
-                      icon: Icon(
-                        _downloaded
-                            ? Icons.offline_pin
-                            : Icons.download_outlined,
-                      ),
-                      tooltip: _downloaded
-                          ? 'Saved for offline use'
-                          : 'Save emergency guides for offline use',
-                    ),
-                  ),
-                  _ContactsList(countryCode: _countryCode),
-
-                  const SectionHeader(
-                    title: 'What happened?',
-                    subtitle: 'Pick a situation for a step-by-step plan',
-                    padding: EdgeInsets.only(
-                      top: AppSpacing.xxl,
-                      bottom: AppSpacing.md,
-                    ),
-                  ),
-                  for (final ({
-                        IconData icon,
-                        EmergencyCategory category,
-                        String guideSlug,
-                      })
-                      s
-                      in kEmergencyScenarios) ...<Widget>[
-                    _ScenarioTile(
-                      category: s.category,
-                      icon: s.icon,
-                      onTap: () => context.push('/emergency/${s.guideSlug}'),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-
-                  const SectionHeader(
-                    title: 'Before you need this',
-                    padding: EdgeInsets.only(
-                      top: AppSpacing.xxl,
-                      bottom: AppSpacing.md,
-                    ),
-                  ),
-                  const _PreparednessCard(),
-                  const SizedBox(height: AppSpacing.huge),
-                ],
+    // Tab root, so PageScaffold is told not to draw a back arrow. The
+    // PageHeader in the sliver list below is the page's only title.
+    return PageScaffold(
+      showBackButton: false,
+      body: PageBody(
+        // Zero because the section group below carries its own
+        // AppSpacing.lg gutter; stacking both would double it on a phone.
+        padding: EdgeInsets.zero,
+        child: ScrollAwareShell(
+          child: CustomScrollView(
+            slivers: <Widget>[
+              const SliverToBoxAdapter(
+                child: PageHeader(
+                  title: 'Travel Assistant',
+                  subtitle: 'What to do when something goes wrong abroad',
+                ),
               ),
-            ),
+              // SliverMainAxisGroup lets a single SliverPadding gutter the
+              // whole body while the sections inside stay real slivers. They
+              // used to be one giant SliverToBoxAdapter, which built every
+              // scenario tile and contact card whether or not it was ever
+              // scrolled past.
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                sliver: SliverMainAxisGroup(slivers: _sections(context)),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+  /// The body of the page, in the order it has always appeared: disclaimer,
+  /// country picker, the Hong Kong banner, contacts, scenarios, preparedness.
+  List<Widget> _sections(BuildContext context) => <Widget>[
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        child: const InlineBanner(
+          message:
+              'TripSplit is not a substitute for local authorities, your embassy, '
+              'legal advice or professional medical care. Confirm details with the '
+              'official source before you rely on them.',
+          tone: StatusTone.warning,
+          icon: Icons.gavel_outlined,
+        ),
+      ),
+    ),
+    const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        delay: Duration(milliseconds: staggerDelayFor(1)),
+        child: _CountryCard(
+          selected: _countryCode,
+          onChanged: (String c) => setState(() => _countryCode = c),
+        ),
+      ),
+    ),
+    const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+
+    if (_countryCode == 'HK')
+      SliverToBoxAdapter(
+        child: FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(2)),
+          child: _HongKongBanner(
+            onTap: () => context.push('/emergency/hong-kong/lost-passport'),
+          ),
+        ),
+      ),
+
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        delay: Duration(milliseconds: staggerDelayFor(3)),
+        child: SectionHeader(
+          title: 'Emergency contacts',
+          subtitle: 'For $_countryCode — always shown with its source',
+          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+          action: IconButton(
+            onPressed: _download,
+            icon: Icon(
+              _downloaded ? Icons.offline_pin : Icons.download_outlined,
+            ),
+            tooltip: _downloaded
+                ? 'Saved for offline use'
+                : 'Save emergency guides for offline use',
+          ),
+        ),
+      ),
+    ),
+    _ContactsList(countryCode: _countryCode),
+
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        delay: Duration(milliseconds: staggerDelayFor(4)),
+        child: const SectionHeader(
+          title: 'What happened?',
+          subtitle: 'Pick a situation for a step-by-step plan',
+          padding: EdgeInsets.only(top: AppSpacing.xxl, bottom: AppSpacing.md),
+        ),
+      ),
+    ),
+    // Built one tile at a time as they come into view rather than all at once.
+    SliverList.builder(
+      itemCount: kEmergencyScenarios.length,
+      itemBuilder: (BuildContext context, int i) {
+        final ({EmergencyCategory category, String guideSlug, IconData icon})
+        s = kEmergencyScenarios[i];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(i + 5)),
+            child: _ScenarioTile(
+              category: s.category,
+              icon: s.icon,
+              onTap: () => context.push('/emergency/${s.guideSlug}'),
+            ),
+          ),
+        );
+      },
+    ),
+
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        delay: Duration(milliseconds: staggerDelayFor(5)),
+        child: const SectionHeader(
+          title: 'Before you need this',
+          padding: EdgeInsets.only(top: AppSpacing.xxl, bottom: AppSpacing.md),
+        ),
+      ),
+    ),
+    SliverToBoxAdapter(
+      child: FadeSlideIn(
+        delay: Duration(milliseconds: staggerDelayFor(6)),
+        child: const _PreparednessCard(),
+      ),
+    ),
+
+    // Keeps the preparedness card clear of the navigation bar and the shell's
+    // floating action button when this page is scrolled to the very end.
+    const SliverToBoxAdapter(child: SizedBox(height: 96)),
+  ];
 }
 
 class _CountryCard extends StatelessWidget {
@@ -239,6 +287,9 @@ class _HongKongBanner extends StatelessWidget {
 ///
 /// Falls back to the bundled copy when there is no server, which is what makes
 /// the Emergency Center usable offline and without an account.
+///
+/// Returns slivers rather than a box widget: a country can have a lot of
+/// contacts, and the page no longer builds them all up front.
 class _ContactsList extends ConsumerWidget {
   const _ContactsList({required this.countryCode});
 
@@ -250,7 +301,7 @@ class _ContactsList extends ConsumerWidget {
         kBundledEmergencyContacts[countryCode] ?? const <EmergencyResource>[];
 
     if (!SupabaseService.isInitialised) {
-      return _contactCards(bundled);
+      return _sliver(bundled);
     }
 
     return FutureBuilder<List<EmergencyResource>>(
@@ -264,32 +315,38 @@ class _ContactsList extends ConsumerWidget {
             BuildContext context,
             AsyncSnapshot<List<EmergencyResource>> snapshot,
           ) {
-            return _contactCards(snapshot.data ?? bundled);
+            return _sliver(snapshot.data ?? bundled);
           },
     );
   }
 
-  Widget _contactCards(List<EmergencyResource> resources) {
+  Widget _sliver(List<EmergencyResource> resources) {
     if (resources.isEmpty) {
-      return const AppCard(
-        child: EmptyState(
-          compact: true,
-          icon: Icons.help_outline,
-          title: 'No contacts recorded',
-          message:
-              'TripSplit has no contacts for this country. Use the official emergency '
-              'directory for your location rather than guessing.',
+      return const SliverToBoxAdapter(
+        child: FadeSlideIn(
+          child: AppCard(
+            child: EmptyState(
+              compact: true,
+              icon: Icons.help_outline,
+              title: 'No contacts recorded',
+              message:
+                  'TripSplit has no contacts for this country. Use the official emergency '
+                  'directory for your location rather than guessing.',
+            ),
+          ),
         ),
       );
     }
-    return Column(
-      children: <Widget>[
-        for (final EmergencyResource r in resources)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: EmergencyContactCard(resource: r),
-          ),
-      ],
+
+    return SliverList.builder(
+      itemCount: resources.length,
+      itemBuilder: (BuildContext context, int i) => Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: FadeSlideIn(
+          delay: Duration(milliseconds: staggerDelayFor(i)),
+          child: EmergencyContactCard(resource: resources[i]),
+        ),
+      ),
     );
   }
 }

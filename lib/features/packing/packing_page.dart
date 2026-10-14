@@ -7,6 +7,7 @@ import '../../data/models/planning.dart';
 import '../../data/models/trip.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import 'packing_template.dart';
 
 final packingListsProvider = FutureProvider.autoDispose
@@ -32,8 +33,8 @@ class _PackingPageState extends ConsumerState<PackingPage> {
     final AsyncValue<Trip?> tripAsync = ref.watch(currentTripProvider);
     final Trip? trip = tripAsync.value;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Packing & checklists')),
+    return PageScaffold(
+      title: 'Packing & checklists',
       floatingActionButton: trip != null && trip.myRole.canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _newList(context),
@@ -59,11 +60,26 @@ class _PackingPageState extends ConsumerState<PackingPage> {
               ),
             );
           }
-          return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            itemCount: lists.length,
-            itemBuilder: (BuildContext context, int i) =>
-                ChecklistCard(list: lists[i], tripId: widget.tripId),
+          // The builder form of the page scroll view: PageBody carries the
+          // width cap and the bottom clearance clears the "New checklist"
+          // button floating above the last card.
+          return PageBody(
+            padding: EdgeInsets.zero,
+            child: ScrollAwareShell(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  96,
+                ),
+                itemCount: lists.length,
+                itemBuilder: (BuildContext context, int i) => FadeSlideIn(
+                  delay: Duration(milliseconds: staggerDelayFor(i)),
+                  child: ChecklistCard(list: lists[i], tripId: widget.tripId),
+                ),
+              ),
+            ),
           );
         },
       ),

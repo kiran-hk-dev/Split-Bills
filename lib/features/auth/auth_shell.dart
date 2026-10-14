@@ -18,6 +18,8 @@ class AuthShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final String location = GoRouterState.of(context).matchedLocation;
 
+    // /welcome is mounted outside the app shell, so this keeps a real
+    // Scaffold: there is no shell canvas to show through.
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -34,10 +36,17 @@ class AuthShell extends StatelessWidget {
                   const _Brand(),
                   const SizedBox(height: AppSpacing.huge),
                   if (AppConfig.demoMode) ...<Widget>[
-                    const InlineBanner(
-                      message: 'Demo mode is on. Nothing you type here is sent anywhere, and no account is created.',
-                      icon: Icons.science_outlined,
-                      tone: StatusTone.warning,
+                    // AnimatedSize is deliberately left alone: it measures its
+                    // child, and an entrance animation inside it would make the
+                    // switch between sign-in and sign-up measure a sliding
+                    // height instead of the settled one.
+                    FadeSlideIn(
+                      delay: Duration(milliseconds: staggerDelayFor(1)),
+                      child: const InlineBanner(
+                        message: 'Demo mode is on. Nothing you type here is sent anywhere, and no account is created.',
+                        icon: Icons.science_outlined,
+                        tone: StatusTone.warning,
+                      ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
                   ],
@@ -53,18 +62,20 @@ class AuthShell extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: AppSpacing.xxl),
-                  if (AppConfig.demoMode)
-                    FilledButton.icon(
-                      onPressed: () => context.go('/home'),
-                      icon: const Icon(Icons.play_arrow),
-                      label: const Text('Explore the demo'),
-                    )
-                  else
-                    Text(
-                      'TripSplit World never stores your passport number. Trip planning works without one.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(4)),
+                    child: AppConfig.demoMode
+                        ? FilledButton.icon(
+                            onPressed: () => context.go('/home'),
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Explore the demo'),
+                          )
+                        : Text(
+                            'TripSplit World never stores your passport number. Trip planning works without one.',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -90,9 +101,8 @@ class _Brand extends StatelessWidget {
             width: 64,
             height: 64,
             filterQuality: FilterQuality.medium,
-            errorBuilder:
-                (BuildContext context, Object error, _) =>
-                    const BrandMark(size: 64),
+            errorBuilder: (BuildContext context, Object error, _) =>
+                const BrandMark(size: 64),
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
@@ -136,6 +146,9 @@ class _FormPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Not a PageScaffold: these pages are mounted outside the app shell, so
+    // they need a real opaque Scaffold for the Material the TextFields
+    // depend on. The entrance animation still applies.
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -147,7 +160,7 @@ class _FormPage extends StatelessWidget {
             ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 440),
-              child: child,
+              child: FadeSlideIn(child: child),
             ),
           ),
         ),
@@ -740,7 +753,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 onPageChanged: (int i) => setState(() => _page = i),
                 itemCount: _slides.length,
                 itemBuilder: (BuildContext context, int i) {
-                  final ({IconData icon, String body, String title, String image})
+                  final ({
+                    IconData icon,
+                    String body,
+                    String title,
+                    String image,
+                  })
                   slide = _slides[i];
                   return Padding(
                     padding: const EdgeInsets.symmetric(
@@ -762,9 +780,11 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                               slide.image,
                               fit: BoxFit.contain,
                               filterQuality: FilterQuality.medium,
-                              errorBuilder:
-                                  (BuildContext context, Object error, _) =>
-                                      _SlideIconBadge(icon: slide.icon),
+                              errorBuilder: (
+                                BuildContext context,
+                                Object error,
+                                _,
+                              ) => _SlideIconBadge(icon: slide.icon),
                             ),
                           ),
                           const SizedBox(height: AppSpacing.xxl),
@@ -786,43 +806,49 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 },
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                for (int i = 0; i < _slides.length; i++)
-                  AnimatedContainer(
-                    duration: AppDurations.fast,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: i == _page ? 22 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: i == _page
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.outline,
-                      borderRadius: BorderRadius.circular(AppRadius.pill),
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(1)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  for (int i = 0; i < _slides.length; i++)
+                    AnimatedContainer(
+                      duration: AppDurations.fast,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      width: i == _page ? 22 : 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: i == _page
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          if (_page < _slides.length - 1) {
-                            _pager.nextPage(
-                              duration: AppDurations.normal,
-                              curve: Curves.easeOut,
-                            );
-                          } else {
-                            _finish();
-                          }
-                        },
-                  child: Text(
-                    _page < _slides.length - 1 ? 'Next' : 'Start planning',
+              child: FadeSlideIn(
+                delay: Duration(milliseconds: staggerDelayFor(2)),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            if (_page < _slides.length - 1) {
+                              _pager.nextPage(
+                                duration: AppDurations.normal,
+                                curve: Curves.easeOut,
+                              );
+                            } else {
+                              _finish();
+                            }
+                          },
+                    child: Text(
+                      _page < _slides.length - 1 ? 'Next' : 'Start planning',
+                    ),
                   ),
                 ),
               ),
@@ -833,6 +859,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
     );
   }
 }
+
 /// Fallback badge for an onboarding slide whose illustration is missing.
 ///
 /// Kept so the slide still reads as designed if an asset ever fails to load,

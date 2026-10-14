@@ -11,6 +11,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Live currency conversion centre.
 ///
@@ -140,132 +141,161 @@ class _ConverterPageState extends ConsumerState<ConverterPage> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Currency converter')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+    return PageScaffold(
+      title: 'Currency converter',
+      // PageScrollView carries the width cap, the pointer-aware scrollbar and
+      // the bottom clearance. The form keeps its own amount fields, the fee
+      // validator and the swap behaviour exactly as they were.
+      body: PageScrollView(
         children: <Widget>[
-          AppCard(
-            child: Column(
-              children: <Widget>[
-                _CurrencyField(
-                  label: 'From',
-                  code: _from,
-                  amount: _amount,
-                  onPickCurrency: () => _pickCurrency(from: true),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Center(
-                  child: IconButton.filledTonal(
-                    onPressed: _loading ? null : _swap,
-                    icon: const Icon(Icons.swap_vert),
-                    tooltip: 'Swap currencies',
+          FadeSlideIn(
+            child: AppCard(
+              child: Column(
+                children: <Widget>[
+                  _CurrencyField(
+                    label: 'From',
+                    code: _from,
+                    amount: _amount,
+                    onPickCurrency: () => _pickCurrency(from: true),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _CurrencyField(
-                  label: 'To',
-                  code: _to,
-                  amount: null,
-                  readOnlyAmount: _result?.converted,
-                  onPickCurrency: () => _pickCurrency(from: false),
-                ),
-              ],
+                  const SizedBox(height: AppSpacing.md),
+                  Center(
+                    child: IconButton.filledTonal(
+                      onPressed: _loading ? null : _swap,
+                      icon: const Icon(Icons.swap_vert),
+                      tooltip: 'Swap currencies',
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _CurrencyField(
+                    label: 'To',
+                    code: _to,
+                    amount: null,
+                    readOnlyAmount: _result?.converted,
+                    onPickCurrency: () => _pickCurrency(from: false),
+                  ),
+                ],
+              ),
             ),
           ),
 
           const SizedBox(height: AppSpacing.lg),
-          if (_loading)
-            const AppCard(child: SkeletonBox(height: 80))
-          else if (_error != null)
-            InlineBanner(
-              message: _error!,
-              tone: StatusTone.warning,
-              icon: Icons.cloud_off,
-              action: TextButton(onPressed: _load, child: const Text('Retry')),
-            )
-          else
-            _RateNotice(
-              rate: _rate,
-              result: _rates,
-              fromCode: _from,
-              toCode: _to,
-            ),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(1)),
+            child:
+                _loading
+                    ? const AppCard(child: SkeletonBox(height: 80))
+                    : _error != null
+                    ? InlineBanner(
+                        message: _error!,
+                        tone: StatusTone.warning,
+                        icon: Icons.cloud_off,
+                        action: TextButton(
+                          onPressed: _load,
+                          child: const Text('Retry'),
+                        ),
+                      )
+                    : _RateNotice(
+                        rate: _rate,
+                        result: _rates,
+                        fromCode: _from,
+                        toCode: _to,
+                      ),
+          ),
 
           if (_result != null && _useFee) ...<Widget>[
             const SizedBox(height: AppSpacing.md),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: TextField(
-                          controller: _fee,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Estimated fee',
-                            suffixText: '%',
-                          ),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text('After fee', style: theme.textTheme.bodySmall),
-                            Text(
-                              _result!.afterFee.format(),
-                              style: theme.textTheme.titleMedium,
+            FadeSlideIn(
+              delay: Duration(milliseconds: staggerDelayFor(2)),
+              child: AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: TextField(
+                            controller: _fee,
+                            keyboardType:
+                                const TextInputType.numberWithOptions(
+                                  decimal: true,
+                                ),
+                            decoration: const InputDecoration(
+                              labelText: 'Estimated fee',
+                              suffixText: '%',
                             ),
-                          ],
+                            onChanged: (_) => setState(() {}),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  SwitchListTile(
-                    value: _useFee,
-                    onChanged: (bool v) => setState(() => _useFee = v),
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    title: const Text('Estimate a card or bank fee'),
-                    subtitle: const Text(
-                      'An estimate you set yourself — TripSplit does not know your provider\'s fee.',
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                'After fee',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                              Text(
+                                _result!.afterFee.format(),
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.sm),
+                    SwitchListTile(
+                      value: _useFee,
+                      onChanged: (bool v) => setState(() => _useFee = v),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: const Text('Estimate a card or bank fee'),
+                      subtitle: const Text(
+                        'An estimate you set yourself — TripSplit does not know your provider\'s fee.',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
 
           const SizedBox(height: AppSpacing.lg),
-          FilledButton.icon(
-            onPressed: _result == null ? null : _saveHistory,
-            icon: const Icon(Icons.history, size: 18),
-            label: const Text('Save to conversion history'),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(3)),
+            child: FilledButton.icon(
+              onPressed: _result == null ? null : _saveHistory,
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Save to conversion history'),
+            ),
           ),
 
           const SizedBox(height: AppSpacing.xl),
-          const InlineBanner(
-            message:
-                'These are indicative mid-market reference rates. Your bank, card issuer or exchange '
-                'counter may apply a different rate and their own fees, so the amount you actually '
-                'receive can be lower. TripSplit does not connect to any payment provider.',
-            tone: StatusTone.warning,
-            icon: Icons.info_outline,
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(4)),
+            child: const InlineBanner(
+              message:
+                  'These are indicative mid-market reference rates. Your bank, card issuer or exchange '
+                  'counter may apply a different rate and their own fees, so the amount you actually '
+                  'receive can be lower. TripSplit does not connect to any payment provider.',
+              tone: StatusTone.warning,
+              icon: Icons.info_outline,
+            ),
           ),
 
           const SizedBox(height: AppSpacing.xl),
-          const SectionHeader(title: 'Recent conversions'),
-          const _HistoryList(),
-
-          const SizedBox(height: AppSpacing.huge),
+          FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(5)),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                SectionHeader(title: 'Recent conversions'),
+                _HistoryList(),
+              ],
+            ),
+          ),
         ],
       ),
     );

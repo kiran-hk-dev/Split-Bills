@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import 'motion.dart';
@@ -85,6 +86,181 @@ class SkeletonListTile extends StatelessWidget {
           SizedBox(width: AppSpacing.lg),
           Expanded(child: SkeletonBox(height: 14)),
         ],
+      ),
+    );
+  }
+}
+
+/// Standard page chrome for every screen that lives inside the app shell.
+///
+/// The shell already provides a [Scaffold] with the navigation bar or rail,
+/// so a page that creates its own paints a second opaque canvas inside the
+/// first. That is the seam you see down the edge of a nested scaffold, and it
+/// also means the page cannot inherit the shell's width cap.
+///
+/// This widget is a [Scaffold] with a **transparent** background, so it supplies
+/// the [AppBar], the [FloatingActionButton] and the Material ancestor that ink
+/// effects need, while the shell's canvas shows through behind it.
+///
+/// Use it instead of a bare `Scaffold(` in any feature page. Pages mounted
+/// outside the shell (the router's splash and 404 screens) still use a real
+/// opaque [Scaffold].
+class PageScaffold extends StatelessWidget {
+  const PageScaffold({
+    super.key,
+    required this.body,
+    this.title,
+    this.actions,
+    this.floatingActionButton,
+    this.floatingActionButtonLocation,
+    this.bottom,
+    this.showBackButton = true,
+    this.resizeToAvoidBottomInset = true,
+    this.extendBodyBehindAppBar = false,
+  });
+
+  final Widget body;
+  final String? title;
+  final List<Widget>? actions;
+  final Widget? floatingActionButton;
+  final FloatingActionButtonLocation? floatingActionButtonLocation;
+  final PreferredSizeWidget? bottom;
+
+  /// Shows a back arrow. True by default because almost every page is pushed
+  /// onto the stack; the five tab roots are the exception.
+  final bool showBackButton;
+
+  final bool resizeToAvoidBottomInset;
+  final bool extendBodyBehindAppBar;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool wantsBar =
+        title != null || actions != null || bottom != null || showBackButton;
+
+    return Scaffold(
+      // Transparent so the shell's canvas shows through. An opaque one here
+      // draws a visible seam against the shell background.
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: extendBodyBehindAppBar,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      appBar: !wantsBar
+          ? null
+          : AppBar(
+              title: title == null ? null : Text(title!),
+              leading: showBackButton
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => context.canPop()
+                          ? context.pop()
+                          : context.go('/home'),
+                      tooltip: 'Back',
+                    )
+                  : null,
+              actions: actions,
+              bottom: bottom,
+            ),
+      body: body,
+      floatingActionButton: floatingActionButton,
+      floatingActionButtonLocation:
+          floatingActionButtonLocation ?? FloatingActionButtonLocation.endFloat,
+    );
+  }
+}
+
+/// A scroll view with the app's standard behaviour already wired up.
+///
+/// Bundles the three things every page in the app was getting wrong
+/// individually: the content width cap that stops a form stretching across a
+/// desktop monitor, the pointer-aware scrollbar, and enough bottom padding that
+/// the last row is never hidden behind the navigation bar or a floating action
+/// button.
+///
+/// [slivers] is the lower-level form, for pages built on [CustomScrollView].
+class PageScrollView extends StatelessWidget {
+  const PageScrollView({
+    super.key,
+    required this.children,
+    this.controller,
+    this.padding,
+    this.bottomClearance = 96,
+    this.maxWidth,
+  });
+
+  /// The page's content as ordinary widgets.
+  final List<Widget> children;
+
+  final ScrollController? controller;
+
+  /// Overrides the default horizontal gutter and top padding.
+  final EdgeInsets? padding;
+
+  /// Space kept below the last item so it clears the navigation bar and any
+  /// floating action button.
+  final double bottomClearance;
+
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return PageBody(
+      maxWidth: maxWidth,
+      padding:
+          padding ??
+          EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            bottomClearance,
+          ),
+      child: ScrollAwareShell(
+        child: ListView(
+          controller: controller,
+          padding: EdgeInsets.zero,
+          children: children,
+        ),
+      ),
+    );
+  }
+}
+
+/// The scrollable form of [PageScrollView], for pages built on slivers.
+class PageSliverScrollView extends StatelessWidget {
+  const PageSliverScrollView({
+    super.key,
+    required this.slivers,
+    this.controller,
+    this.topPadding = AppSpacing.md,
+    this.bottomClearance = 96,
+    this.maxWidth,
+  });
+
+  final List<Widget> slivers;
+  final ScrollController? controller;
+  final double topPadding;
+  final double bottomClearance;
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final double width = MediaQuery.sizeOf(context).width;
+    final double gutter = PageBody.gutterFor(width);
+
+    return PageBody(
+      maxWidth: maxWidth,
+      child: ScrollAwareShell(
+        child: CustomScrollView(
+          controller: controller,
+          slivers: <Widget>[
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 0),
+              sliver: SliverList.list(children: slivers),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(height: bottomClearance),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/supabase_service.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 
 /// Accepts a trip invitation from a shared link.
 ///
@@ -73,74 +74,78 @@ class _AcceptInvitePageState extends ConsumerState<AcceptInvitePage> {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Trip invitation')),
+    return PageScaffold(
+      title: 'Trip invitation',
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.xxl),
+          // The card is already width-capped at 420px, so PageBody is not
+          // needed here; only the entrance is missing.
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (_acceptedTripId != null) ...<Widget>[
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 64,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'You have joined the trip',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  const InlineBanner(
-                    message:
-                        'You will be able to see the itinerary, budget and expenses shared '
-                        'with you, according to the role the owner assigned.',
-                    tone: StatusTone.positive,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  FilledButton(
-                    onPressed: () => context.go('/trips/$_acceptedTripId'),
-                    child: const Text('Open the trip'),
-                  ),
-                ] else if (_error != null) ...<Widget>[
-                  Icon(
-                    Icons.link_off,
-                    size: 64,
-                    color: theme.colorScheme.error,
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text(
-                    'Invitation not accepted',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: AppSpacing.xl),
-                  FilledButton(
-                    onPressed: () => context.go('/trips'),
-                    child: const Text('Go to my trips'),
-                  ),
-                  TextButton(
-                    onPressed: () => context.go('/home'),
-                    child: const Text('Back to home'),
-                  ),
-                ] else ...<Widget>[
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: AppSpacing.xl),
-                  Text('Joining the trip…', style: theme.textTheme.bodyLarge),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'If you are not signed in with the invited email address, this will '
-                    'not work.',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall,
-                  ),
+            child: FadeSlideIn(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  if (_acceptedTripId != null) ...<Widget>[
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 64,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'You have joined the trip',
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    const InlineBanner(
+                      message:
+                          'You will be able to see the itinerary, budget and expenses shared '
+                          'with you, according to the role the owner assigned.',
+                      tone: StatusTone.positive,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    FilledButton(
+                      onPressed: () => context.go('/trips/$_acceptedTripId'),
+                      child: const Text('Open the trip'),
+                    ),
+                  ] else if (_error != null) ...<Widget>[
+                    Icon(
+                      Icons.link_off,
+                      size: 64,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text(
+                      'Invitation not accepted',
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(_error!, textAlign: TextAlign.center),
+                    const SizedBox(height: AppSpacing.xl),
+                    FilledButton(
+                      onPressed: () => context.go('/trips'),
+                      child: const Text('Go to my trips'),
+                    ),
+                    TextButton(
+                      onPressed: () => context.go('/home'),
+                      child: const Text('Back to home'),
+                    ),
+                  ] else ...<Widget>[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: AppSpacing.xl),
+                    Text('Joining the trip…', style: theme.textTheme.bodyLarge),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(
+                      'If you are not signed in with the invited email address, this will '
+                      'not work.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

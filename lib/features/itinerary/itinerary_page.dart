@@ -15,6 +15,7 @@ import '../../data/supabase_service.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/form_fields.dart';
+import '../../shared/widgets/motion.dart';
 
 enum ItineraryView { list, calendar, map }
 
@@ -46,17 +47,15 @@ class _ItineraryPageState extends ConsumerState<ItineraryPage> {
     final AsyncValue<Trip?> tripAsync = ref.watch(currentTripProvider);
     final Trip? trip = tripAsync.value;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Itinerary'),
-        actions: <Widget>[
-          IconButton(
-            onPressed: () => context.push('/ai-planner'),
-            icon: const Icon(Icons.auto_awesome),
-            tooltip: 'Generate with AI',
-          ),
-        ],
-      ),
+    return PageScaffold(
+      title: 'Itinerary',
+      actions: <Widget>[
+        IconButton(
+          onPressed: () => context.push('/ai-planner'),
+          icon: const Icon(Icons.auto_awesome),
+          tooltip: 'Generate with AI',
+        ),
+      ],
       floatingActionButton: trip != null && trip.myRole.canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _addItem(context),
@@ -64,52 +63,67 @@ class _ItineraryPageState extends ConsumerState<ItineraryPage> {
               label: const Text('Add activity'),
             )
           : null,
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (Object err, StackTrace _) => ErrorStateView(
-          message: '$err',
-          onRetry: () => ref.invalidate(itineraryDaysProvider(widget.tripId)),
-        ),
-        data: (List<ItineraryDay> days) {
-          if (days.isEmpty) {
-            return EmptyState(
-              icon: Icons.map_outlined,
-              title: 'No itinerary yet',
-              message:
-                  'Add activities day by day, or let the AI planner draft one you can edit '
-                  'before you save anything.',
-              action: FilledButton.icon(
-                onPressed: () => context.push('/ai-planner'),
-                icon: const Icon(Icons.auto_awesome),
-                label: const Text('Plan with AI'),
-              ),
-            );
-          }
-          final int index = _selectedDay.clamp(0, days.length - 1);
-          return Column(
-            children: <Widget>[
-              _ViewSwitcher(
-                view: _view,
-                onChanged: (ItineraryView v) => setState(() => _view = v),
-              ),
-              _DayStrip(
-                days: days,
-                selected: index,
-                onChanged: (int i) => setState(() => _selectedDay = i),
-              ),
-              Expanded(
-                child: switch (_view) {
-                  ItineraryView.list => _ListView(
-                    days: days,
-                    tripId: widget.tripId,
+      // Zero, because the view switcher, the day strip and every view's own
+      // list below already apply their own AppSpacing.lg gutter.
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: ScrollAwareShell(
+          child: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (Object err, StackTrace _) => ErrorStateView(
+              message: '$err',
+              onRetry: () =>
+                  ref.invalidate(itineraryDaysProvider(widget.tripId)),
+            ),
+            data: (List<ItineraryDay> days) {
+              if (days.isEmpty) {
+                return EmptyState(
+                  icon: Icons.map_outlined,
+                  title: 'No itinerary yet',
+                  message:
+                      'Add activities day by day, or let the AI planner draft one you can edit '
+                      'before you save anything.',
+                  action: FilledButton.icon(
+                    onPressed: () => context.push('/ai-planner'),
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Plan with AI'),
                   ),
-                  ItineraryView.calendar => _CalendarView(days: days),
-                  ItineraryView.map => _MapView(days: days),
-                },
-              ),
-            ],
-          );
-        },
+                );
+              }
+              final int index = _selectedDay.clamp(0, days.length - 1);
+              return Column(
+                children: <Widget>[
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(0)),
+                    child: _ViewSwitcher(
+                      view: _view,
+                      onChanged: (ItineraryView v) =>
+                          setState(() => _view = v),
+                    ),
+                  ),
+                  FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(1)),
+                    child: _DayStrip(
+                      days: days,
+                      selected: index,
+                      onChanged: (int i) => setState(() => _selectedDay = i),
+                    ),
+                  ),
+                  Expanded(
+                    child: switch (_view) {
+                      ItineraryView.list => _ListView(
+                        days: days,
+                        tripId: widget.tripId,
+                      ),
+                      ItineraryView.calendar => _CalendarView(days: days),
+                      ItineraryView.map => _MapView(days: days),
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -268,7 +282,14 @@ class _ListView extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
 
     return ReorderableListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      // 96 of bottom clearance, because the Add activity button floats over the
+      // bottom-right of this list and would otherwise sit on the last day.
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        96,
+      ),
       itemCount: days.length,
       onReorderItem: (int oldIndex, int newIndex) {
         // Reordering whole days is a display-only affordance here; activities
@@ -535,7 +556,14 @@ class _CalendarView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      // Same 96 of bottom clearance as the list view, so the last day clears
+      // the Add activity button.
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        96,
+      ),
       itemCount: days.length,
       itemBuilder: (BuildContext context, int i) {
         final ItineraryDay day = days[i];
@@ -648,7 +676,9 @@ class _MapView extends StatelessWidget {
         Positioned(
           left: AppSpacing.lg,
           right: AppSpacing.lg,
-          bottom: AppSpacing.lg,
+          // Lifted clear of the Add activity button, which floats at endFloat
+          // over the bottom of this stack.
+          bottom: AppSpacing.lg + 72,
           child: Card(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.md),

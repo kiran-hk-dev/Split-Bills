@@ -24,28 +24,47 @@ class _TripsPageState extends ConsumerState<TripsPage> {
   Widget build(BuildContext context) {
     final AsyncValue<dynamic> tripsAsync = ref.watch(tripsProvider);
 
-    return Scaffold(
+    // Tab root, so no back arrow: the shell already put the user here, and an
+    // arrow would only offer them a way out of the tab they just chose.
+    return PageScaffold(
+      showBackButton: false,
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/trips/new'),
         icon: const Icon(Icons.add),
         label: const Text('New trip'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(tripsProvider.future),
-        child: CustomScrollView(
-          slivers: <Widget>[
-            const SliverToBoxAdapter(
-              child: PageHeader(
-                title: 'My trips',
-                subtitle: 'Everything you are planning',
-              ),
+      // PageBody carries the width cap that stops the trip cards stretching
+      // across a desktop monitor. padding is zero because every section below
+      // already applies its own AppSpacing.lg gutter, and stacking both would
+      // double it on a phone.
+      body: PageBody(
+        padding: EdgeInsets.zero,
+        child: ScrollAwareShell(
+          child: RefreshIndicator(
+            onRefresh: () async => ref.refresh(tripsProvider.future),
+            child: CustomScrollView(
+              slivers: <Widget>[
+                SliverToBoxAdapter(
+                  child: FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(0)),
+                    child: const PageHeader(
+                      title: 'My trips',
+                      subtitle: 'Everything you are planning',
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: FadeSlideIn(
+                    delay: Duration(milliseconds: staggerDelayFor(1)),
+                    child: _FilterBar(selected: _filter, onChanged: _setFilter),
+                  ),
+                ),
+                ..._buildBody(context, tripsAsync),
+                // Clears the navigation bar and the extended FAB above it.
+                const SliverToBoxAdapter(child: SizedBox(height: 96)),
+              ],
             ),
-            SliverToBoxAdapter(
-              child: _FilterBar(selected: _filter, onChanged: _setFilter),
-            ),
-            ..._buildBody(context, tripsAsync),
-            const SliverToBoxAdapter(child: SizedBox(height: 96)),
-          ],
+          ),
         ),
       ),
     );
@@ -113,28 +132,36 @@ class _TripsPageState extends ConsumerState<TripsPage> {
 
     return <Widget>[
       if (isStale)
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.md,
-            ),
-            child: InlineBanner(
-              message: 'Showing trips saved on this device. Pull down to refresh when you are back online.',
-              tone: StatusTone.warning,
-              icon: Icons.cloud_off,
+        SliverToBoxAdapter(
+          child: FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(2)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                0,
+                AppSpacing.lg,
+                AppSpacing.md,
+              ),
+              child: InlineBanner(
+                message: 'Showing trips saved on this device. Pull down to refresh when you are back online.',
+                tone: StatusTone.warning,
+                icon: Icons.cloud_off,
+              ),
             ),
           ),
         ),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        // Each card cascades in on its own index. staggerDelayFor caps the
+        // delay, so the twentieth card is not still waiting after the eighth
+        // has already appeared.
         sliver: SliverList.separated(
           itemCount: filtered.length,
           separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
-          itemBuilder: (BuildContext context, int i) =>
-              TripCard(trip: filtered[i]),
+          itemBuilder: (BuildContext context, int i) => FadeSlideIn(
+            delay: Duration(milliseconds: staggerDelayFor(i)),
+            child: TripCard(trip: filtered[i]),
+          ),
         ),
       ),
     ];
