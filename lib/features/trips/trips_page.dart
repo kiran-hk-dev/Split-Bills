@@ -3,12 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../../data/models/expense.dart';
 import '../../data/models/trip.dart';
 import '../../router/providers.dart';
 import '../../router/app_shell.dart';
-import '../../shared/widgets/avatars.dart';
 import '../../shared/widgets/common.dart';
+import '../../shared/widgets/motion.dart';
 import '../../shared/widgets/trip_cover.dart';
 
 class TripsPage extends ConsumerStatefulWidget {
@@ -204,9 +203,35 @@ class TripCard extends StatelessWidget {
 
   final Trip trip;
 
+  /// The actions offered on every card.
+  ///
+  /// The card used to do exactly one thing — open the trip — so logging an
+  /// expense or checking the plan meant opening the trip and then finding the
+  /// right tile inside it. On a phone that is four taps for the single most
+  /// common action in the app. These jump straight there.
+  List<({String label, IconData icon, String route})> get _quickActions =>
+      <({String label, IconData icon, String route})>[
+        (
+          label: 'Expense',
+          icon: Icons.add_card_outlined,
+          route: '/trips/${trip.id}/expenses/new',
+        ),
+        (
+          label: 'Plan',
+          icon: Icons.map_outlined,
+          route: '/trips/${trip.id}/itinerary',
+        ),
+        (
+          label: 'Budget',
+          icon: Icons.pie_chart_outline,
+          route: '/trips/${trip.id}/budget',
+        ),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+    final bool canEdit = trip.myRole.canEdit;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -214,16 +239,14 @@ class TripCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          // Always show artwork. A trip with no photo gets a stable duotone
+          // Always show artwork. A trip with no photo gets painted artwork
           // derived from its own identity, so the list is not a column of
           // identical placeholders.
           AspectRatio(
-            aspectRatio: 16 / 6,
+            aspectRatio: 16 / 7,
             child: TripCover(
               imageUrl: trip.coverImageUrl,
               seed: '${trip.countryCode ?? ''}:${trip.name}',
-              title: trip.destinationLabel,
-              subtitle: trip.dateRangeLabel,
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(AppRadius.lg),
               ),
@@ -237,18 +260,16 @@ class TripCard extends StatelessWidget {
                 Row(
                   children: <Widget>[
                     StatusPill(label: trip.effectiveStatus.label, dense: true),
-                    const Spacer(),
-                    if (trip.myRole.canEdit)
-                      MemberStack(
-                        members: <TripMember>[
-                          for (int i = 0; i < trip.memberCount; i++)
-                            TripMember(
-                              userId: '$i',
-                              tripId: trip.id,
-                              fullName: 'Member ${i + 1}',
-                            ),
-                        ],
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        trip.dateRangeLabel,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -260,9 +281,37 @@ class TripCard extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  '${trip.destinationLabel} · ${trip.dateRangeLabel}',
+                  trip.destinationLabel,
                   style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // Quick actions. Only for someone who can actually change the
+                // trip — offering "add expense" to a viewer would lead to a
+                // permission error one tap later.
+                if (canEdit)
+                  _QuickActionRow(actions: _quickActions)
+                else
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.visibility_outlined,
+                        size: 16,
+                        color: theme.textTheme.bodySmall?.color,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'You have view access to this trip',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+
+                const SizedBox(height: AppSpacing.lg),
+                Divider(color: theme.colorScheme.outlineVariant, height: 1),
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: <Widget>[
@@ -283,10 +332,7 @@ class TripCard extends StatelessWidget {
                       color: theme.textTheme.bodySmall?.color,
                     ),
                     const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      '${trip.dayCount} days',
-                      style: theme.textTheme.bodySmall,
-                    ),
+                    Text('${trip.dayCount} days', style: theme.textTheme.bodySmall),
                     const Spacer(),
                     Text(
                       trip.baseCurrency,
@@ -300,6 +346,88 @@ class TripCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A row of pill buttons that jump straight to a trip's sub-screens.
+class _QuickActionRow extends StatelessWidget {
+  const _QuickActionRow({required this.actions});
+
+  final List<({String label, IconData icon, String route})> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        for (int i = 0; i < actions.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: _QuickActionButton(
+              label: actions[i].label,
+              icon: actions[i].icon,
+              // The first one is the common case, so it is the filled one.
+              primary: i == 0,
+              onTap: () => context.push(actions[i].route),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color fg = primary
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onSurface;
+
+    return PressableScale(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppDurations.fast,
+        curve: AppCurves.standard,
+        height: AppHitTarget.minimum,
+        decoration: BoxDecoration(
+          color: primary
+              ? theme.colorScheme.primary
+              : theme.colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(icon, size: 17, color: primary ? fg : theme.colorScheme.onPrimaryContainer),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: primary ? fg : theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

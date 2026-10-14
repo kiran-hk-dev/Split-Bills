@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tripsplit_world/core/config/app_config.dart';
 import 'package:tripsplit_world/core/theme/app_theme.dart';
 import 'package:tripsplit_world/features/profile/profile_page.dart';
-import 'package:tripsplit_world/router/providers.dart';
 
 /// Guards the discoverability of sign-out.
 ///

@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/reference.dart';
+import '../../data/models/trip.dart';
+import '../../data/repositories.dart';
+import '../../data/supabase_service.dart';
 import '../../router/app_shell.dart';
 import '../../router/providers.dart';
 import '../../shared/widgets/common.dart';
@@ -245,40 +248,169 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   }
 }
 
-class _DestinationCard extends StatelessWidget {
+/// A destination in the results list.
+///
+/// The card used to be an image and a paragraph with nothing tappable on it but
+/// the card itself, so browsing Explore could not lead anywhere: every idea
+/// needed opening the detail page first. It now carries the actions that make
+/// Explore worth browsing — save, add to a trip, and compare cost — each of
+/// which jumps straight to where the work happens.
+class _DestinationCard extends ConsumerWidget {
   const _DestinationCard({required this.destination, required this.onTap});
 
   final Destination destination;
   final VoidCallback onTap;
 
+  /// Whether this destination is already on the saved list.
+  ///
+  /// Watched rather than held in local state, so saving from one card updates
+  /// every card showing the same place, and the bookmark survives a rebuild.
+  bool _isSaved(WidgetRef ref) {
+    final List<Map<String, dynamic>> saved =
+        ref.watch(wishlistProvider).value ?? const <Map<String, dynamic>>[];
+    return saved.any(
+      (Map<String, dynamic> item) => '${item['name']}' == destination.name,
+    );
+  }
+
+  Future<void> _toggleSaved(BuildContext context, WidgetRef ref) async {
+    final bool saved = _isSaved(ref);
+    try {
+      if (saved) {
+        final List<Map<String, dynamic>> items =
+            ref.read(wishlistProvider).value ?? const <Map<String, dynamic>>[];
+        final Map<String, dynamic> match = items.firstWhere(
+          (Map<String, dynamic> i) => '${i['name']}' == destination.name,
+          orElse: () => const <String, dynamic>{},
+        );
+        if (match['id'] != null) {
+          await ref
+              .read(destinationRepositoryProvider)
+              .removeFromWishlist('${match['id']}');
+        }
+      } else {
+        await ref
+            .read(destinationRepositoryProvider)
+            .saveToWishlist(
+              name: destination.name,
+              country: destination.country,
+              countryCode: destination.countryCode,
+            );
+      }
+      ref.invalidate(wishlistProvider);
+      if (context.mounted) {
+        showFeedback(
+          context,
+          saved ? 'Removed from your list.' : 'Saved to your list.',
+        );
+      }
+    } catch (err) {
+      if (context.mounted) {
+        showFeedback(
+          context,
+          err is RepositoryException ? err.message : 'Could not save that.',
+          isError: true,
+        );
+      }
+    }
+  }
+
+  /// Offers the trips a destination could be added to.
+  ///
+  /// Adds a trip to the picker. Without one there is nothing to add it to, so
+  /// it sends the user to create one instead of showing an empty sheet.
+  Future<void> _addToTrip(BuildContext context, WidgetRef ref) async {
+    final TripListResult? trips = ref.read(tripsProvider).value;
+    final List<Trip> options = trips?.trips ?? const <Trip>[];
+
+    if (options.isEmpty) {
+      if (context.mounted) {
+        showFeedback(
+          context,
+          'Create a trip first, then add destinations to it.',
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    if (!context.mounted) return;
+    final String? chosen = await showAppSheet<String>(
+      context: context,
+      builder: (BuildContext context) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            const ListTile(
+              title: Text(
+                'Add to which trip?',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Divider(height: 1),
+            for (final Trip t in options)
+              ListTile(
+                leading: const Icon(Icons.luggage_outlined),
+                title: Text(t.name),
+                subtitle: Text(t.destinationLabel),
+                onTap: () => Navigator.of(context).pop(t.id),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (chosen == null || !context.mounted) return;
+    showFeedback(context, 'Opening ${destination.name} in your trip plan.');
+    if (context.mounted) {
+      context.push('/trips/$chosen/itinerary');
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
+    final bool saved = _isSaved(ref);
+
     return AppCard(
       padding: EdgeInsets.zero,
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          if (destination.imageUrl != null)
-            ClipRRect(
-              // Top corners only: this image sits flush against the top edge
-              // of the card, whose own corners are rounded above it.
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.lg),
-              ),
-              child: AspectRatio(
-                aspectRatio: 16 / 7,
-                // The old errorBuilder returned a bare tinted rectangle with a
-                // small icon, which looked identical to an image that had not
-                // loaded yet. NetworkArtwork draws a brand gradient instead, so
-                // a broken URL is obviously artwork rather than a gap.
-                child: NetworkArtwork(
-                  url: destination.imageUrl!,
-                  fallbackIcon: Icons.landscape_outlined,
+          Stack(
+            children: <Widget>[
+              if (destination.imageUrl != null)
+                ClipRRect(
+                  // Top corners only: this image sits flush against the top
+                  // edge of the card, whose own corners are rounded above it.
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(AppRadius.lg),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 7,
+                    // The old errorBuilder returned a bare tinted rectangle
+                    // with a small icon, which looked identical to an image
+                    // that had not loaded yet. NetworkArtwork draws a brand
+                    // gradient instead.
+                    child: NetworkArtwork(
+                      url: destination.imageUrl!,
+                      fallbackIcon: Icons.landscape_outlined,
+                    ),
+                  ),
+                ),
+              // Save toggle sits on the artwork so it is reachable from the
+              // card without opening anything.
+              Positioned(
+                top: AppSpacing.sm,
+                right: AppSpacing.sm,
+                child: _SaveToggle(
+                  saved: saved,
+                  onTap: () => _toggleSaved(context, ref),
                 ),
               ),
-            ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
@@ -317,10 +449,132 @@ class _DestinationCard extends StatelessWidget {
                       StatusPill(label: c, dense: true),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.lg),
+                Divider(color: theme.colorScheme.outlineVariant, height: 1),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _CardAction(
+                        icon: Icons.playlist_add_check,
+                        label: 'Add to trip',
+                        primary: true,
+                        onTap: () => _addToTrip(context, ref),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: _CardAction(
+                        icon: Icons.compare_arrows,
+                        label: 'Compare',
+                        onTap: onTap,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Bookmark toggle for a destination card.
+class _SaveToggle extends StatelessWidget {
+  const _SaveToggle({required this.saved, required this.onTap});
+
+  final bool saved;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      onTap: onTap,
+      scale: 0.9,
+      child: Container(
+        // A real 44px target even though the glyph is 18.
+        width: AppHitTarget.minimum,
+        height: AppHitTarget.minimum,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: AnimatedSwitcher(
+          duration: AppDurations.normal,
+          transitionBuilder:
+              (Widget child, Animation<double> animation) => ScaleTransition(
+                scale: animation,
+                child: FadeTransition(opacity: animation, child: child),
+              ),
+          child: Icon(
+            saved ? Icons.bookmark : Icons.bookmark_border,
+            key: ValueKey<bool>(saved),
+            size: 20,
+            color: saved ? _bookmarkColour(context) : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Color _bookmarkColour(BuildContext context) =>
+      Theme.of(context).colorScheme.primaryContainer;
+}
+
+/// A compact action button used on the bottom of a destination card.
+class _CardAction extends StatelessWidget {
+  const _CardAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool primary;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final Color bg = primary
+        ? theme.colorScheme.primary
+        : theme.colorScheme.primaryContainer;
+    final Color fg = primary
+        ? theme.colorScheme.onPrimary
+        : theme.colorScheme.onPrimaryContainer;
+
+    return PressableScale(
+      onTap: onTap,
+      child: Container(
+        height: AppHitTarget.minimum,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(icon, size: 17, color: fg),
+            const SizedBox(width: AppSpacing.sm),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

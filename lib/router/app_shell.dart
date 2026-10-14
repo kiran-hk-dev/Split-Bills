@@ -285,7 +285,15 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final Color activeColor = theme.colorScheme.onPrimaryContainer;
+
+    // The selected state is a filled brand pill, not a faint tint.
+    //
+    // It was `primaryContainer` (#EEF0FE) on a #FFFFFF surface — a difference
+    // of about 3% that is invisible on a phone in daylight, so a selected tab
+    // read as unselected. `primary` carries white icon and label at 6.3:1, and
+    // it cannot be mistaken for the resting state.
+    final Color pillColor = theme.colorScheme.primary;
+    final Color activeColor = theme.colorScheme.onPrimary;
     final Color inactiveColor = theme.textTheme.bodySmall?.color ??
         AppColors.inkMuted;
 
@@ -304,44 +312,60 @@ class _BottomNavItem extends StatelessWidget {
             children: <Widget>[
               // The pill behind the icon grows out of nothing when selected.
               AnimatedContainer(
+                // Keyed per destination so the selected state can be asserted
+                // directly — the label is a sibling of this pill, not a
+                // descendant, so it cannot be used to find it.
+                key: ValueKey<String>('nav-pill-${tab.route}'),
                 duration: AppDurations.normal,
                 curve: AppCurves.entrance,
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                height: 34,
+                width: selected ? 56 : 34,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? theme.colorScheme.primaryContainer
-                      : Colors.transparent,
+                  color: selected ? pillColor : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
+                  boxShadow: selected
+                      ? <BoxShadow>[
+                          BoxShadow(
+                            color: pillColor.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
                 ),
-                child: Center(
-                  child: AnimatedScale(
+                child: AnimatedScale(
+                  duration: AppDurations.normal,
+                  curve: AppCurves.emphasis,
+                  scale: selected ? 1.0 : 0.92,
+                  child: AnimatedSwitcher(
                     duration: AppDurations.normal,
-                    curve: AppCurves.emphasis,
-                    scale: selected ? 1.0 : 0.92,
-                    child: AnimatedSwitcher(
-                      duration: AppDurations.normal,
-                      child: Icon(
-                        selected ? tab.filledIcon : tab.icon,
-                        key: ValueKey<bool>(selected),
-                        size: 22,
-                        color: selected ? activeColor : inactiveColor,
-                      ),
+                    child: Icon(
+                      selected ? tab.filledIcon : tab.icon,
+                      key: ValueKey<bool>(selected),
+                      size: 21,
+                      color: selected ? activeColor : inactiveColor,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 3),
               // The label fades rather than switching colour instantly.
               AnimatedDefaultTextStyle(
                 duration: AppDurations.fast,
                 curve: AppCurves.standard,
                 style:
                     (theme.textTheme.labelSmall ?? const TextStyle()).copyWith(
-                      color: selected ? activeColor : inactiveColor,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : inactiveColor,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                     ),
-                child: Text(tab.label, maxLines: 1, overflow: TextOverflow.clip),
+                child: Text(
+                  tab.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
+                ),
               ),
             ],
           ),
