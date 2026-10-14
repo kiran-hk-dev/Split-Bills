@@ -77,9 +77,11 @@ class TripCover extends StatelessWidget {
 
   /// Deterministic palette index.
   ///
-  /// FNV-1a alone clustered: several plausible trip names hashed into the same
-  /// slot. The finalising multiply-xor spreads neighbouring inputs without
-  /// making the mapping any less stable.
+  /// FNV-1a alone clustered badly: eight plausible trip names landed on only
+  /// five of the eight palettes, so unrelated trips came out the same colour.
+  /// The finaliser below is `lowbias32`, chosen because `% 8` reads only the
+  /// low bits and FNV's own tail does not mix those well — an earlier xor-shift
+  /// pass fixed the high bits but left the low ones still clustered.
   static int paletteIndex(String seed) {
     if (seed.isEmpty) return 0;
     int h = 0x811c9dc5;
@@ -87,10 +89,12 @@ class TripCover extends StatelessWidget {
       h ^= unit;
       h = (h * 0x01000193) & 0x7fffffff;
     }
-    // Final avalanche step.
+    // lowbias32 avalanche.
+    h ^= h >> 16;
+    h = (h * 0x7feb352d) & 0x7fffffff;
     h ^= h >> 15;
-    h = (h * 0x2c1b3c6d) & 0x7fffffff;
-    h ^= h >> 12;
+    h = (h * 0x846ca68b) & 0x7fffffff;
+    h ^= h >> 16;
     return h % _palettes.length;
   }
 
