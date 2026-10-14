@@ -444,8 +444,19 @@ class BudgetProgressBar extends StatelessWidget {
         minHeight: height,
         backgroundColor: theme.colorScheme.surfaceContainerHighest,
         valueColor: AlwaysStoppedAnimation<Color>(color),
-        semanticsLabel: showOverflow ? 'Budget used' : null,
-        semanticsValue: '${(value * 100).round()} percent of the budget used',
+        // A progress node's semanticsValue is parsed as a NUMBER. Passing prose
+        // here ("62 percent of the budget used") threw
+        // "Progress bar value, minValue, and maxValue must be valid numbers"
+        // for anyone with a screen reader attached. The words belong in the
+        // label; the value must stay numeric.
+        semanticsLabel: over
+            ? 'Budget used, over budget'
+            : 'Budget used',
+        // Clamped to 0-100: a semantics value outside that range throws
+        // "Progress bar value must be between minValue and maxValue", so an
+        // overspent trip crashed the semantics tree. The overspend itself is
+        // announced by the label, not by a number above 100.
+        semanticsValue: '${(value.clamp(0.0, 1.0) * 100).round()}',
       ),
     );
   }

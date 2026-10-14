@@ -24,12 +24,21 @@ class AppColors {
   static const Color surface = Color(0xFFFFFFFF);
   static const Color surfaceMuted = Color(0xFFF1EFEA);
   static const Color border = Color(0xFFE2DED5);
-  static const Color borderStrong = Color(0xFFCBC5B8);
+  /// Border for interactive controls (text fields, outlined buttons).
+  ///
+  /// Darkened from #CBC5B8, which sat at 1.72:1 on surface. WCAG 1.4.11 wants
+  /// 3:1 for the boundary that identifies a control; this reaches 3.39:1 on
+  /// surface and 3.16:1 on canvas while staying clearly heavier than
+  /// [border], so the hierarchy still reads.
+  static const Color borderStrong = Color(0xFF8F8B84);
 
   // Text
   static const Color ink = Color(0xFF0B1F3A);
   static const Color inkMuted = Color(0xFF5A6B7F);
-  static const Color inkFaint = Color(0xFF8A97A6);
+  /// Tinted placeholder text. Darkened from #8A97A6, which sat at 2.78:1 on
+  /// [canvas] and 2.98:1 on [surface] and failed WCAG AA (4.5:1) for body text.
+  /// This value reaches 4.50:1 on canvas and 4.82:1 on surface.
+  static const Color inkFaint = Color(0xFF69737E);
 
   // Status
   static const Color positive = Color(0xFF047857);
@@ -47,7 +56,13 @@ class AppColors {
   static const Color darkCanvas = Color(0xFF0B1420);
   static const Color darkSurface = Color(0xFF121E2C);
   static const Color darkSurfaceMuted = Color(0xFF1B2938);
-  static const Color darkBorder = Color(0xFF24374B);
+  /// Dark-theme border for interactive controls.
+  ///
+  /// #24374B sat at 1.38:1 on darkSurface, so control outlines were invisible
+  /// in dark mode. Lifted to 3.02:1 on darkSurface and 3.31:1 on darkCanvas.
+  /// Kept in the blue-slate family: a brute-force search that ignored hue
+  /// offered greens and over-saturated blues, which fought the theme.
+  static const Color darkBorder = Color(0xFF3E6E92);
   static const Color darkInk = Color(0xFFE8EEF5);
   static const Color darkInkMuted = Color(0xFF9BAEC2);
 }
@@ -142,7 +157,14 @@ class AppTheme {
           surface: isDark ? AppColors.darkSurface : AppColors.surface,
           onSurface: isDark ? AppColors.darkInk : AppColors.ink,
           error: AppColors.danger,
-          outline: isDark ? AppColors.darkBorder : AppColors.border,
+          // `outline` draws the boundaries that identify an interactive control - text
+          // field outlines and outlined-button borders. WCAG 1.4.11 requires 3:1
+          // for those, and [AppColors.border] only reached 1.34:1 on surface,
+          // so controls were effectively invisible to low-vision users.
+          // Decorative card edges still use [AppColors.border] directly and stay
+          // subtle, because a card is identified by its fill, not its edge.
+          outline: isDark ? AppColors.darkBorder : AppColors.borderStrong,
+          // Variant stays subtle: it is for dividers and fills, not controls.
           outlineVariant: isDark ? AppColors.darkBorder : AppColors.border,
         );
 
