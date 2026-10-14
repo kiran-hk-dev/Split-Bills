@@ -474,16 +474,16 @@ class _NextTripCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-// Always render artwork; a trip with no photo gets its stable duotone.
-              AspectRatio(
-                aspectRatio: 16 / 7,
-                child: TripCover(
-                  imageUrl: trip.coverImageUrl,
-                  seed: '${trip.countryCode ?? ''}:${trip.name}',
-                  title: trip.name,
-                  subtitle: trip.dateRangeLabel,
-                ),
+            // The cover carries neither the name nor the dates: both are
+            // rendered immediately below, and repeating them made every
+            // dashboard card say "test" twice in 400px of vertical space.
+            AspectRatio(
+              aspectRatio: 16 / 7,
+              child: TripCover(
+                imageUrl: trip.coverImageUrl,
+                seed: '${trip.countryCode ?? ''}:${trip.name}',
               ),
+            ),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Column(
@@ -637,9 +637,11 @@ class _BalanceRow extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Everyone is settled up on this trip.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: AppColors.positiveFor(theme.brightness),
-              ),
+              // Neutral, not green. Green here was a third meaning of the same
+              // colour on one card: "owed to you" was already green, so a
+              // settled trip read as money owed. Settled is the absence of
+              // money, and should look like it.
+              style: theme.textTheme.bodySmall,
             ),
           ],
         ],
@@ -691,21 +693,21 @@ class _ActivityTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
+
     return Column(
       children: <Widget>[
         ListTile(
           dense: true,
           leading: MemberAvatar(
-            initials: (log.actorName ?? '?')
-                .split(' ')
-                .map((String w) {
-                  return w.isEmpty ? '' : w[0];
-                })
-                .take(2)
-                .join(),
+            initials: log.actorInitials,
             size: 34,
+            semanticLabel: log.displayActorName,
           ),
-          title: Text(log.summary, style: theme.textTheme.bodyMedium),
+          // displaySummary strips a leading raw user id. Database trigger
+          // wrote those before migration 0010, which has not been applied to
+          // every database, so "8b90b4a6-... added breakfast" was what the
+          // dashboard showed.
+          title: Text(log.displaySummary, style: theme.textTheme.bodyMedium),
           subtitle: Text(
             _relative(log.createdAt),
             style: theme.textTheme.bodySmall,

@@ -98,6 +98,10 @@ class ActivityLog extends Model {
   final String entityType;
   final String? entityId;
   final String action;
+
+  /// The summary exactly as it was written.
+  ///
+  /// Prefer [displaySummary] in any UI.
   final String summary;
   final Map<String, dynamic> metadata;
   final DateTime createdAt;
@@ -127,6 +131,45 @@ class ActivityLog extends Model {
     'summary': summary,
     'created_at': createdAt.toUtc().toIso8601String(),
   };
+
+  /// [summary] with any leading raw user id removed.
+  ///
+  /// Rows written before migration `0010` were built as
+  /// `'<uuid> added dinner (INR)'`, which rendered as
+  /// "8b90b4a6-2fa2-4ea3-9854-0e2c74527d3e added breakfast (INR)" in the
+  /// activity feed. The migration repairs those rows at source, but it has not
+  /// been applied to every database, and new rows written by an un-migrated
+  /// trigger would regress again — so the client refuses to display a bare id.
+  String get displaySummary {
+    final RegExpMatch? match = _uuidPrefix.firstMatch(summary);
+    if (match == null) return summary;
+    final String rest = summary.substring(match.end).trim();
+    return rest.isEmpty ? 'Activity updated' : rest;
+  }
+
+  /// Name to show for the actor, never an id.
+  String get displayActorName {
+    final String name = actorName?.trim() ?? '';
+    return name.isEmpty ? 'Someone' : name;
+  }
+
+  /// Two-letter monogram for the actor's avatar.
+  String get actorInitials {
+    final List<String> parts = displayActorName
+        .split(RegExp(r'\s+'))
+        .where((String w) => w.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) {
+      return parts.first.substring(0, parts.first.length.clamp(0, 2));
+    }
+    return '${parts.first[0]}${parts.last[0]}';
+  }
+
+  static final RegExp _uuidPrefix = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}'
+    r'-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\s+',
+  );
 }
 
 @immutable

@@ -407,12 +407,20 @@ class AppTheme {
               : AppColors.primaryDeep,
           secondary: secondaryFill,
           onSecondary: onSecondary,
+          // Material draws the selected segment of every SegmentedButton, and
+          // every ChoiceChip row, from secondaryContainer. It was set to mint
+          // green, so "Balanced" and every other trip-style / itinerary-pace
+          // option rendered green next to an indigo brand - the exact clash
+          // this palette exists to avoid.
+          //
+          // Mint stays available as [AppColors.positiveSoft] for places that
+          // genuinely mean "good", rather than being the default accent.
           secondaryContainer: isDark
-              ? const Color(0xFF10403B)
-              : AppColors.mint,
+              ? const Color(0xFF2E2456)
+              : AppColors.violetSoft,
           onSecondaryContainer: isDark
-              ? const Color(0xFF99F6E4)
-              : AppColors.teal,
+              ? const Color(0xFFE4DBFF)
+              : const Color(0xFF5B21B6),
           tertiary: isDark ? const Color(0xFFC4B5FD) : AppColors.violet,
           onTertiary: isDark ? const Color(0xFF1F1147) : Colors.white,
           tertiaryContainer: isDark
@@ -639,6 +647,25 @@ class AppTheme {
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.pill),
+        ),
+      ),
+
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (Set<WidgetState> states) => states.contains(WidgetState.selected)
+                ? scheme.secondaryContainer
+                : Colors.transparent,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+            (Set<WidgetState> states) => states.contains(WidgetState.selected)
+                ? scheme.onSecondaryContainer
+                : scheme.onSurface,
+          ),
+          side: WidgetStatePropertyAll<BorderSide>(
+            BorderSide(color: scheme.outlineVariant),
+          ),
+          textStyle: WidgetStatePropertyAll<TextStyle?>(text.labelLarge),
         ),
       ),
 

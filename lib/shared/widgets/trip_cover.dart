@@ -124,8 +124,12 @@ class TripCover extends StatelessWidget {
     final List<Color> colors = paletteFor(seed ?? '');
     final String s = seed ?? '';
 
+    // A subtitle counts as an overlay. It used not to, so a cover given only a
+    // subtitle drew no scrim and no text at all — the date range on a trip card
+    // was silently invisible.
     final bool hasOverlay =
         (title != null && title!.isNotEmpty) ||
+        (subtitle != null && subtitle!.isNotEmpty) ||
         (leadingEmoji != null && leadingEmoji!.isNotEmpty);
 
     final Widget cover = ClipRRect(
@@ -141,29 +145,38 @@ class TripCover extends StatelessWidget {
             // error frame.
             Positioned.fill(child: CrossfadeImage(url: imageUrl!)),
 
-          // Large, faint destination mark. Identity without a photo.
+          // Ghosted destination mark, scaled to the cover.
           //
-          // Initials, not the country flag: Windows has no flag emoji glyphs
-          // and renders them as empty boxes, so a flag watermark looked broken
-          // on exactly the platform this app is built on.
+          // It used to be a fixed 96px pinned off two edges. On a 700x300
+          // dashboard hero that clipped the letters into two meaningless bars
+          // in the corner, so it now scales with the cover and sits fully
+          // inside it.
           if (imageUrl == null || imageUrl!.isEmpty)
-            Positioned(
-              right: -AppSpacing.sm,
-              bottom: -AppSpacing.lg,
-              child: IgnorePointer(
-                child: Text(
-                  _monogram(s),
-                  maxLines: 1,
-                  softWrap: false,
-                  style: TextStyle(
-                    fontSize: 96,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
-                    letterSpacing: -4,
-                    color: Colors.white.withValues(alpha: 0.10),
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double markSize =
+                    (constraints.biggest.shortestSide * 0.42).clamp(28, 132);
+                return Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: IgnorePointer(
+                      child: Text(
+                        _monogram(s),
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          fontSize: markSize,
+                          fontWeight: FontWeight.w800,
+                          height: 1,
+                          letterSpacing: -2,
+                          color: Colors.white.withValues(alpha: 0.09),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
 
           // Legibility scrim, only as strong as the overlay needs.
@@ -291,26 +304,7 @@ class _CoverArtworkState extends State<_CoverArtwork>
     duration: _period,
   );
 
-  /// Deterministic per seed, and built once so the list identity is stable and
-  /// [shouldRepaint] can compare it cheaply.
-  late final List<_Blob> _blobs = _buildBlobs(widget.seed);
-
   bool _animate = false;
-
-  static List<_Blob> _buildBlobs(String seed) {
-    final math.Random random = math.Random(seed.hashCode);
-    return <_Blob>[
-      for (int i = 0; i < 3; i++)
-        _Blob(
-          dx: 0.18 + random.nextDouble() * 0.64,
-          dy: 0.15 + random.nextDouble() * 0.6,
-          radius: 0.34 + random.nextDouble() * 0.26,
-          phase: random.nextDouble() * math.pi * 2,
-          strength: 0.16 + random.nextDouble() * 0.12,
-          tint: random.nextBool(),
-        ),
-    ];
-  }
 
   @override
   void initState() {
@@ -354,7 +348,7 @@ class _CoverArtworkState extends State<_CoverArtwork>
         painter: _CoverPainter(
           colors: widget.colors,
           t: _controller.value,
-          blobs: _blobs,
+          seed: widget.seed,
         ),
         isComplex: true,
         willChange: _animate,
@@ -363,6 +357,9 @@ class _CoverArtworkState extends State<_CoverArtwork>
   }
 }
 
+/// A soft blob's placement, derived deterministically from the trip seed and
+/// its index so a cover always looks the same and a bigger cover can simply ask
+/// for more.
 class _Blob {
   const _Blob({
     required this.dx,
@@ -381,13 +378,25 @@ class _Blob {
 
   /// Whether this blob leans toward the palette's light or dark stop.
   final bool tint;
+
+  factory _Blob.fromSeed(int seedHash, int index) {
+    final math.Random random = math.Random(seedHash ^ (index * 0x9E3779B1));
+    return _Blob(
+      dx: 0.18 + random.nextDouble() * 0.64,
+      dy: 0.15 + random.nextDouble() * 0.6,
+      radius: 0.34 + random.nextDouble() * 0.26,
+      phase: random.nextDouble() * math.pi * 2,
+      strength: 0.16 + random.nextDouble() * 0.12,
+      tint: random.nextBool(),
+    );
+  }
 }
 
 class _CoverPainter extends CustomPainter {
   _CoverPainter({
     required this.colors,
     required this.t,
-    required this.blobs,
+    required this.seed,
   });
 
   final List<Color> colors;
@@ -395,7 +404,10 @@ class _CoverPainter extends CustomPainter {
   /// Sweep position, 0 to 1.
   final double t;
 
-  final List<_Blob> blobs;
+  final String seed;
+
+  /// The blob at [index], derived from the seed so the composition is stable.
+  _Blob _blobAt(int index) => _Blob.fromSeed(seed.hashCode, index);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -412,10 +424,21 @@ class _CoverPainter extends CustomPainter {
         ).createShader(rect),
     );
 
-    // Soft blobs. Each drifts on its own sine so they never move in lockstep.
+    // The number of blobs scales with area.
+    //
+    // A fixed three was tuned against a 56px thumbnail and then looked almost
+    // empty on a 700x300 dashboard hero, where the eye has far more area to
+    // find detail in. Scaling with area keeps the same visual density at every
+    // size, which is the whole point of painting this rather than scaling a
+    // pre-rendered image.
+    final int blobCount = (size.width * size.height / 26000).round().clamp(
+      3,
+      9,
+    );
+
     final double angle = t * 2 * math.pi;
-    for (int i = 0; i < blobs.length; i++) {
-      final _Blob b = blobs[i];
+    for (int i = 0; i < blobCount; i++) {
+      final _Blob b = _blobAt(i);
       final double wobble = math.sin(angle + b.phase) * 0.05;
       final Offset centre = Offset(
         size.width * (b.dx + wobble),
@@ -437,6 +460,26 @@ class _CoverPainter extends CustomPainter {
           ).createShader(Rect.fromCircle(center: centre, radius: r))
           ..blendMode = b.tint ? BlendMode.plus : BlendMode.srcOver,
       );
+    }
+
+    // Concentric rings, drawn only once the cover is big enough for them to
+    // read as detail rather than as noise. This is what stops a large cover
+    // looking like an empty gradient.
+    if (size.shortestSide > 90) {
+      final Offset ringCentre = Offset(
+        size.width * 0.78,
+        size.height * 0.30,
+      );
+      final double maxRadius = size.shortestSide * 0.75;
+      final Paint ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..blendMode = BlendMode.plus;
+      for (int r = 1; r <= 4; r++) {
+        ring.color = Colors.white.withValues(
+          alpha: 0.055 * (1 - (r - 1) / 5),
+        );
+        canvas.drawCircle(ringCentre, maxRadius * (r / 4.2), ring);
+      }
     }
 
     // A second, tighter highlight that sweeps the length of the cover.
@@ -474,8 +517,7 @@ class _CoverPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CoverPainter old) =>
-      old.t != t || old.colors != colors || old.blobs != blobs;
+  bool shouldRepaint(_CoverPainter old) => old.t != t || old.colors != colors || old.seed != seed;
 }
 
 /// Small square destination thumbnail, used in lists and detail rows.

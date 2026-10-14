@@ -242,6 +242,9 @@ class TripCard extends StatelessWidget {
           // Always show artwork. A trip with no photo gets painted artwork
           // derived from its own identity, so the list is not a column of
           // identical placeholders.
+          // No text on the cover: the name and dates sit directly below, and
+          // repeating them on the artwork is what made every card say the same
+          // thing twice.
           AspectRatio(
             aspectRatio: 16 / 7,
             child: TripCover(

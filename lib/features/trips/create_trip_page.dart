@@ -290,27 +290,47 @@ class _CreateTripPageState extends ConsumerState<CreateTripPage> {
             _DayCountRow(start: _start, end: _end),
 
             const SizedBox(height: AppSpacing.lg),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: MoneyField(
-                    label: 'Total budget',
-                    currency: _currency,
-                    controller: _budget,
-                    onCurrencyChanged: (String c) =>
-                        setState(() => _currency = c),
-                    helperText:
-                        'Optional. You can allocate it by category later.',
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: _TravelerStepper(
-                    value: _travelers,
-                    onChanged: (int v) => setState(() => _travelers = v),
-                  ),
-                ),
-              ],
+            // These two were side by side in a 50/50 Row. MoneyField carries a
+            // currency button and a leading icon, so at half of a 390px screen
+            // the input itself got about 90px and its helper text clipped to
+            // "Option al. Yo...". They stack below the breakpoint where that
+            // stops being true, and sit together above it.
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final Widget budget = MoneyField(
+                  label: 'Total budget',
+                  currency: _currency,
+                  controller: _budget,
+                  onCurrencyChanged: (String c) =>
+                      setState(() => _currency = c),
+                  helperText:
+                      'Optional. You can allocate it by category later.',
+                );
+                final Widget travellers = _TravelerStepper(
+                  value: _travelers,
+                  onChanged: (int v) => setState(() => _travelers = v),
+                );
+
+                if (constraints.maxWidth < 460) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      budget,
+                      const SizedBox(height: AppSpacing.md),
+                      travellers,
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(child: budget),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(child: travellers),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: AppSpacing.xl),
@@ -528,14 +548,17 @@ class _TravelerStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
       ),
       decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: Theme.of(context).colorScheme.outline),
+        border: Border.all(color: theme.colorScheme.outline),
       ),
       child: Row(
         children: <Widget>[
@@ -546,25 +569,83 @@ class _TravelerStepper extends StatelessWidget {
               children: <Widget>[
                 Text(
                   'Travellers',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  // Single line: the stepper sits next to a currency button,
+                  // and a wrapped "Traveller / s" label reads as a typo.
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall,
                 ),
-                Text('$value', style: Theme.of(context).textTheme.titleMedium),
+                Text('$value', style: theme.textTheme.titleMedium),
               ],
             ),
           ),
-          IconButton(
-            onPressed: value > 1 ? () => onChanged(value - 1) : null,
-            icon: const Icon(Icons.remove_circle_outline),
+          const SizedBox(width: AppSpacing.sm),
+          _StepButton(
+            icon: Icons.remove,
             tooltip: 'One fewer traveller',
-            visualDensity: VisualDensity.compact,
+            onPressed: value > 1 ? () => onChanged(value - 1) : null,
           ),
-          IconButton(
-            onPressed: value < 40 ? () => onChanged(value + 1) : null,
-            icon: const Icon(Icons.add_circle_outline),
+          const SizedBox(width: AppSpacing.sm),
+          _StepButton(
+            icon: Icons.add,
             tooltip: 'One more traveller',
-            visualDensity: VisualDensity.compact,
+            onPressed: value < 40 ? () => onChanged(value + 1) : null,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A square, predictable-size stepper button.
+///
+/// Material's IconButton with `visualDensity: compact` shrinks the tap target
+/// below the 48dp the rest of the theme is built to, and the two buttons ended
+/// up a different size from the field beside them.
+class _StepButton extends StatelessWidget {
+  const _StepButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final ThemeData theme = Theme.of(context);
+    final bool enabled = onPressed != null;
+
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        enabled: enabled,
+        label: tooltip,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Container(
+            width: AppHitTarget.minimum,
+            height: AppHitTarget.minimum,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: enabled
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: enabled
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.textTheme.bodySmall?.color,
+            ),
+          ),
+        ),
       ),
     );
   }
