@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/money/currency.dart';
@@ -197,6 +200,26 @@ class _TripDetailBody extends ConsumerWidget {
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
+                          if (trip.myRole.isOwner)
+                            const PopupMenuItem(
+                              value: 'cover',
+                              child: ListTile(
+                                leading: Icon(Icons.photo_library_outlined),
+                                title: Text('Change cover photo'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          if (trip.myRole.isOwner &&
+                              trip.coverImageUrl != null &&
+                              trip.coverImageUrl!.isNotEmpty)
+                            const PopupMenuItem(
+                              value: 'cover-remove',
+                              child: ListTile(
+                                leading: Icon(Icons.hide_image_outlined),
+                                title: Text('Remove cover photo'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
                           if (trip.myRole.isOwner)
                             const PopupMenuItem(
                               value: 'delete',
@@ -439,6 +462,25 @@ class _TripDetailBody extends ConsumerWidget {
             trip.archived ? 'Trip restored.' : 'Trip archived.',
           );
         }
+      case 'cover':
+        await _changeCover(context, ref);
+      case 'cover-remove':
+        try {
+          await repo.removeTripCover(trip.id);
+          ref.invalidate(tripsProvider);
+          ref.invalidate(currentTripProvider);
+          if (context.mounted) showFeedback(context, 'Cover photo removed.');
+        } catch (err) {
+          if (context.mounted) {
+            showFeedback(
+              context,
+              err is RepositoryException
+                  ? err.message
+                  : 'Could not remove the cover photo.',
+              isError: true,
+            );
+          }
+        }
       case 'leave':
         final bool confirmed = await confirmDestructive(
           context,
@@ -472,6 +514,73 @@ class _TripDetailBody extends ConsumerWidget {
           }
         }
     }
+  }
+
+  /// Picks a photo and stores it as the trip cover.
+  ///
+  /// Until this existed `cover_image_url` could never be populated, so every
+  /// trip fell back to painted artwork and there was no way to put a real
+  /// photo on a trip at all.
+  Future<void> _changeCover(BuildContext context, WidgetRef ref) async {
+    if (AppConfig.demoMode) {
+      showFeedback(
+        context,
+        'Uploads are disabled in demo mode.',
+        isError: true,
+      );
+      return;
+    }
+
+    final XFile? picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      // Downscaled before upload. A modern phone photo is 4-8 MB and the
+      // bucket caps at 5 MB, so the original would fail on size alone.
+      maxWidth: 2000,
+      maxHeight: 2000,
+      imageQuality: 85,
+    );
+    if (picked == null || !context.mounted) return;
+
+    final Uint8List bytes = await picked.readAsBytes();
+    if (bytes.length > 5 * 1024 * 1024) {
+      if (context.mounted) {
+        showFeedback(
+          context,
+          'That image is larger than 5 MB. Pick a smaller one.',
+          isError: true,
+        );
+      }
+      return;
+    }
+
+    try {
+      await ref.read(tripRepositoryProvider).uploadTripCover(
+            tripId: trip.id,
+            bytes: bytes,
+            filename: picked.name,
+            mimeType: picked.mimeType ?? _mimeForCover(picked.name),
+          );
+      ref.invalidate(tripsProvider);
+      ref.invalidate(currentTripProvider);
+      if (context.mounted) showFeedback(context, 'Cover photo updated.');
+    } catch (err) {
+      if (context.mounted) {
+        showFeedback(
+          context,
+          err is RepositoryException
+              ? err.message
+              : 'Could not update the cover photo.',
+          isError: true,
+        );
+      }
+    }
+  }
+
+static String _mimeForCover(String filename) {
+    final String lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
   }
 }
 

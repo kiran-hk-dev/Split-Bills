@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -252,6 +253,79 @@ class TripRepository {
       if (archived) 'status': TripStatus.archived.name,
     });
   }
+
+  /// Uploads a cover photo and points the trip at it.
+  ///
+  /// The object path is `<user id>/<trip id>/...` because the first segment is
+  /// the authorisation boundary the storage policies check. The returned URL
+  /// is the bucket's public one and is stable: it is stored straight into
+  /// cover_image_url and rendered in lists well after upload, so a signed URL
+  /// would have expired by the time anyone looked at the trip.
+  Future<String> uploadTripCover({
+    required String tripId,
+    required Uint8List bytes,
+    required String filename,
+    required String mimeType,
+  }) async {
+    final String? userId = _service.currentUserId;
+    if (userId == null) {
+      throw const RepositoryException('Sign in to add a cover photo.');
+    }
+    if (bytes.isEmpty) {
+      throw const RepositoryException('That image was empty.');
+    }
+    if (!tripCoverMimeTypes.contains(mimeType)) {
+      throw RepositoryException(
+        'Covers need to be a JPEG, PNG or WebP. This one is '
+        '${_friendlyType(mimeType)}.',
+      );
+    }
+
+    final String extension = coverExtensionFor(filename, mimeType);
+    final String path = '$userId/$tripId/'
+        '${DateTime.now().millisecondsSinceEpoch}$extension';
+
+    try {
+      await _service.client.storage
+          .from('trip-covers')
+          .uploadBinary(
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              // A real image type, not application/octet-stream. The documents
+              // uploader sends octet-stream, which the bucket's
+              // allowed_mime_types list rejects.
+              contentType: mimeType,
+              upsert: true,
+            ),
+          );
+    } catch (err) {
+      throw RepositoryException(
+        'That image could not be uploaded. Use a JPEG, PNG or WebP under 5 MB.',
+        cause: err,
+      );
+    }
+
+    final String url = _service.client.storage
+        .from('trip-covers')
+        .getPublicUrl(path);
+    await updateTrip(tripId, <String, dynamic>{'cover_image_url': url});
+    return url;
+  }
+
+  /// Clears the cover so the painted fallback shows again.
+  Future<void> removeTripCover(String tripId) =>
+      updateTrip(tripId, <String, dynamic>{'cover_image_url': null});
+
+  static String _friendlyType(String mimeType) => switch (mimeType) {
+      'image/heic' || 'image/heif' => 'a HEIC photo, which Safari records by '
+          'default but which browsers and this bucket cannot store',
+      'image/gif' => 'a GIF',
+      'image/bmp' => 'a BMP',
+      'image/svg+xml' => 'an SVG',
+      '' || 'application/octet-stream' => 'not an image we recognise',
+      _ => 'not a supported image',
+    };
 
   /// Copies a trip and its itinerary into a new draft trip.
   Future<String> duplicateTrip(String tripId, {String? newName}) async {
@@ -1602,6 +1676,34 @@ List<CachedRate> parseFrankfurterResponse(
     throw StateError('Frankfurter returned no rates for $base.');
   }
   return parsed;
+}
+
+/// Image types the `trip-covers` bucket accepts.
+///
+/// HEIC is absent deliberately. It is the iPhone default, and the bucket's
+/// allowed_mime_types list would reject it, which surfaced as an opaque
+/// storage error. Rejecting it up front with an explanation is kinder than a
+/// failure the user cannot act on.
+const List<String> tripCoverMimeTypes = <String>[
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
+/// The extension to store a picked cover under.
+///
+/// Falls back to `.jpg` for an unrecognised name so the object always has a
+/// sane extension, but callers should check [tripCoverMimeTypes] first.
+String coverExtensionFor(String filename, String mimeType) {
+  final String lower = filename.toLowerCase();
+  for (final String ext in <String>['.jpg', '.jpeg', '.png', '.webp']) {
+    if (lower.endsWith(ext)) return ext;
+  }
+  return switch (mimeType) {
+    'image/png' => '.png',
+    'image/webp' => '.webp',
+    _ => '.jpg',
+  };
 }
 
 /// Exchange rates and conversion history.
