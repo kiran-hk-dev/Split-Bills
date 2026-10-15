@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/money/currency.dart';
@@ -1562,6 +1563,47 @@ class EmergencyRepository {
   }
 }
 
+/// Maps Frankfurter's response onto [CachedRate].
+///
+/// Top level and separate from the HTTP call so the mapping can be exercised
+/// without a network round trip. Throws when the response contains nothing
+/// usable, so the caller falls through to the next source.
+List<CachedRate> parseFrankfurterResponse(
+  String base,
+  List<String> quotes,
+  Map<String, dynamic> body,
+) {
+  final Map<String, dynamic> rates = Map<String, dynamic>.from(
+    body['rates'] as Map<dynamic, dynamic>? ?? const <dynamic, dynamic>{},
+  );
+  final DateTime published =
+      DateTime.tryParse(body['date'] as String? ?? '') ?? DateTime.now();
+  // Reference rates are only republished on working days, so a five day window
+  // keeps a weekend or a Monday morning from being labelled stale.
+  final bool stale =
+      DateTime.now().difference(published) > const Duration(days: 5);
+
+  final List<CachedRate> parsed = <CachedRate>[];
+  for (final String quote in quotes) {
+    if (quote.isEmpty || quote == base) continue;
+    final Object? value = rates[quote];
+    if (value is! num) continue;
+    parsed.add(CachedRate(
+      base: base,
+      quote: quote,
+      rate: value.toDouble(),
+      provider: 'frankfurter',
+      fetchedAt: published,
+      isIndicative: true,
+      isStale: stale,
+    ));
+  }
+  if (parsed.isEmpty) {
+    throw StateError('Frankfurter returned no rates for $base.');
+  }
+  return parsed;
+}
+
 /// Exchange rates and conversion history.
 class ConverterRepository {
   ConverterRepository(this._service);
@@ -1575,8 +1617,10 @@ class ConverterRepository {
 
   static const String _ratesKey = 'fx_rates';
 
-  /// Returns rates for the requested quotes, falling back to the local cache
-  /// when the network fails. The caller is told which it got.
+  /// Returns rates for the requested quotes, in the order they should be
+  /// tried: the edge function, then Frankfurter's public feed, then the local
+  /// cache. Each step exists because the one above it failed, and the caller
+  /// is always told which source it ended up with.
   Future<RateResult> rates(String base, List<String> quotes) async {
     try {
       final Map<String, dynamic> result = await _service.invokeFunction(
@@ -1592,55 +1636,112 @@ class ConverterRepository {
               .whereType<Map<String, dynamic>>()
               .toList();
 
-      final List<CachedRate> parsed = rows.map((r) {
-        final DateTime fetched =
-            DateTime.tryParse(r['fetched_at'] as String? ?? '') ??
-            DateTime.now();
-        return CachedRate(
-          base: base,
-          quote: '${r['quote']}',
-          rate: (r['rate'] as num?)?.toDouble() ?? 1,
-          provider: r['provider'] as String? ?? 'unknown',
-          fetchedAt: fetched,
-          isIndicative: r['is_indicative'] as bool? ?? true,
-          isStale: r['is_stale'] as bool? ?? false,
-        );
-      }).toList();
-
-      await (await _localCache).putJson('$_ratesKey:$base', <String, dynamic>{
-        'fetched_at': DateTime.now().toIso8601String(),
-        'rates': parsed.map((r) => r.toCache()).toList(),
-      });
-      await (await _localCache).touch('$_ratesKey:$base');
-
-      return RateResult(
-        rates: parsed,
-        fromCache: false,
-        notice: result['notice'] as String?,
+      return await _accept(
+        base,
+        _parse(base, rows),
+        result['notice'] as String?,
       );
     } catch (err) {
-      final Map<String, dynamic>? cached = (await _localCache).getJson(
-        '$_ratesKey:$base',
-      );
-      if (cached == null) {
-        throw RepositoryException(
-          'Exchange rates are unavailable and nothing is cached for $base yet. '
-          'Connect to the internet and try again.',
-          cause: err,
+      try {
+        return await _accept(
+          base,
+          await _frankfurter(base, quotes),
+          'ECB reference rates via Frankfurter. Indicative only; your card or '
+              'bank will add a margin.',
+        );
+      } catch (_) {
+        final Map<String, dynamic>? cached = (await _localCache).getJson(
+          '$_ratesKey:$base',
+        );
+        if (cached == null) {
+          throw RepositoryException(
+            'Exchange rates are unavailable and nothing is cached for $base yet. '
+            'Connect to the internet and try again.',
+            cause: err,
+          );
+        }
+        final List<CachedRate> parsed =
+            ((cached['rates'] as List?) ?? const <dynamic>[])
+                .whereType<Map<String, dynamic>>()
+                .map(CachedRate.fromCache)
+                .where((r) => quotes.contains(r.quote))
+                .toList();
+        return RateResult(
+          rates: parsed,
+          fromCache: true,
+          notice:
+              'Cached rates. These are not live quotes and your provider may '
+              'use a different rate.',
         );
       }
-      final List<CachedRate> parsed =
-          ((cached['rates'] as List?) ?? const <dynamic>[])
-              .whereType<Map<String, dynamic>>()
-              .map(CachedRate.fromCache)
-              .where((r) => quotes.contains(r.quote))
-              .toList();
-      return RateResult(
-        rates: parsed,
-        fromCache: true,
-        notice: 'Cached rates. These are not live quotes and your provider may use a different rate.',
-      );
     }
+  }
+
+  List<CachedRate> _parse(String base, List<Map<String, dynamic>> rows) {
+    return rows
+        .map((r) => CachedRate(
+              base: base,
+              quote: '${r['quote']}',
+              rate: (r['rate'] as num?)?.toDouble() ?? 1,
+              provider: r['provider'] as String? ?? 'unknown',
+              fetchedAt:
+                  DateTime.tryParse(r['fetched_at'] as String? ?? '') ??
+                      DateTime.now(),
+              isIndicative: r['is_indicative'] as bool? ?? true,
+              isStale: r['is_stale'] as bool? ?? false,
+            ))
+        .toList();
+  }
+
+  /// Stores rates for offline use and wraps them for the caller.
+  Future<RateResult> _accept(
+    String base,
+    List<CachedRate> parsed,
+    String? notice,
+  ) async {
+    await (await _localCache).putJson('$_ratesKey:$base', <String, dynamic>{
+      'fetched_at': DateTime.now().toIso8601String(),
+      'rates': parsed.map((r) => r.toCache()).toList(),
+    });
+    await (await _localCache).touch('$_ratesKey:$base');
+
+    return RateResult(rates: parsed, fromCache: false, notice: notice);
+  }
+
+  /// Frankfurter republishes ECB reference rates and needs no API key, so
+  /// calling it from the client exposes nothing and keeps the converter
+  /// working before the exchange-rates function has been deployed.
+  Future<List<CachedRate>> _frankfurter(
+    String base,
+    List<String> quotes,
+  ) async {
+    final List<String> wanted = quotes
+        .where((q) => q.isNotEmpty && q != base)
+        .toList(growable: false);
+    if (wanted.isEmpty) {
+      throw StateError('Nothing to fetch for $base.');
+    }
+
+    final Dio dio = Dio(
+      BaseOptions(
+        baseUrl: 'https://api.frankfurter.app',
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 8),
+      ),
+    );
+    final Response<dynamic> res = await dio.get<dynamic>(
+      '/latest',
+      queryParameters: <String, dynamic>{
+        'from': base,
+        'to': wanted.join(','),
+      },
+    );
+
+    return parseFrankfurterResponse(
+      base,
+      quotes,
+      Map<String, dynamic>.from(res.data as Map<dynamic, dynamic>),
+    );
   }
 
   Future<void> saveConversion({
