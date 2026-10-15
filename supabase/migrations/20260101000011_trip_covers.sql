@@ -23,6 +23,12 @@ on conflict (id) do update
       allowed_mime_types = excluded.allowed_mime_types;
 
 -- Objects live at <user_id>/<trip_id>/<random>.<ext>.
+--
+-- The ownership check is written inline rather than via public.storage_owner_of
+-- so this file also runs correctly when pasted into the dashboard SQL editor
+-- on its own, which is the likely way it gets applied. storage_owner_of is
+-- declared in migration 0004, and depending on it here would make this one
+-- fail for anyone who has not applied the earlier migrations in order.
 
 drop policy if exists "trip covers are publicly readable" on storage.objects;
 create policy "trip covers are publicly readable"
@@ -34,7 +40,7 @@ create policy "trip covers are inserted by their owner"
   on storage.objects for insert to authenticated
   with check (
     bucket_id = 'trip-covers'
-    and public.storage_owner_of(name) = auth.uid()
+    and (split_part(name, '/', 1)) = auth.uid()::text
   );
 
 drop policy if exists "trip covers are updated by their owner" on storage.objects;
@@ -42,11 +48,11 @@ create policy "trip covers are updated by their owner"
   on storage.objects for update to authenticated
   using (
     bucket_id = 'trip-covers'
-    and public.storage_owner_of(name) = auth.uid()
+    and (split_part(name, '/', 1)) = auth.uid()::text
   )
   with check (
     bucket_id = 'trip-covers'
-    and public.storage_owner_of(name) = auth.uid()
+    and (split_part(name, '/', 1)) = auth.uid()::text
   );
 
 drop policy if exists "trip covers are deleted by their owner" on storage.objects;
@@ -54,5 +60,5 @@ create policy "trip covers are deleted by their owner"
   on storage.objects for delete to authenticated
   using (
     bucket_id = 'trip-covers'
-    and public.storage_owner_of(name) = auth.uid()
+    and (split_part(name, '/', 1)) = auth.uid()::text
   );
