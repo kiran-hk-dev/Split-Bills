@@ -391,47 +391,19 @@ class _CoverArtworkState extends State<_CoverArtwork>
   }
 }
 
-/// A soft blob's placement, derived deterministically from the trip seed and
-/// its index so a cover always looks the same and a bigger cover can simply ask
-/// for more.
-class _Blob {
-  const _Blob({
-    required this.dx,
-    required this.dy,
-    required this.radius,
-    required this.phase,
-    required this.strength,
-    required this.tint,
-  });
-
-  final double dx;
-  final double dy;
-  final double radius;
-  final double phase;
-  final double strength;
-
-  /// Whether this blob leans toward the palette's light or dark stop.
-  final bool tint;
-
-  factory _Blob.fromSeed(int seedHash, int index) {
-    final math.Random random = math.Random(seedHash ^ (index * 0x9E3779B1));
-    return _Blob(
-      dx: 0.18 + random.nextDouble() * 0.64,
-      dy: 0.15 + random.nextDouble() * 0.6,
-      radius: 0.34 + random.nextDouble() * 0.26,
-      phase: random.nextDouble() * math.pi * 2,
-      strength: 0.16 + random.nextDouble() * 0.12,
-      tint: random.nextBool(),
-    );
-  }
-}
-
+/// Paints the fallback cover: a flat landscape in the trip's own hue.
+///
+/// This replaces a pile of radial gradient blobs. Those were meant to supply
+/// depth and read instead as a coloured smudge — on a large dashboard hero a
+/// single blob filled most of the card and looked like a rendering fault
+/// rather than like artwork. A landscape is recognisable at a glance and
+/// holds its character from a 56px thumbnail up to a 700px hero.
 class _CoverPainter extends CustomPainter {
   _CoverPainter({
     required this.colors,
     required this.t,
     required this.seed,
-  });
+  }) : _ridges = _buildRidges(seed);
 
   final List<Color> colors;
 
@@ -440,102 +412,123 @@ class _CoverPainter extends CustomPainter {
 
   final String seed;
 
-  /// The blob at [index], derived from the seed so the composition is stable.
-  _Blob _blobAt(int index) => _Blob.fromSeed(seed.hashCode, index);
+  /// Ridge heights per layer, 0 to 1.
+  ///
+  /// Built once in the constructor. Deriving them inside [paint] would reshuffle
+  /// the landscape on every animation frame, because each frame would consume
+  /// a fresh random sequence.
+  final List<List<double>> _ridges;
+
+  /// The trip's own hue, taken as the middle stop of its three-stop ramp.
+  late final HSLColor base = HSLColor.fromColor(
+    colors.length > 1 ? colors[colors.length ~/ 2] : colors.first,
+  );
+
+  static List<List<double>> _buildRidges(String seed) {
+    const int points = 5;
+    final List<List<double>> layers = <List<double>>[];
+    for (int layer = 0; layer < 3; layer++) {
+      final math.Random random = math.Random(
+        seed.hashCode ^ (layer * 0x9E3779B1),
+      );
+      layers.add(<double>[
+        for (int i = 0; i < points; i++) random.nextDouble(),
+      ]);
+    }
+    return layers;
+  }
+
+  /// Scales the base hue's lightness by [factor].
+  ///
+  /// Multiplicative rather than additive on purpose. An additive offset has to
+  /// be clamped to stay in range, and for the darker hues in the palette —
+  /// crimson, rust, sepia — the clamp bound first, so the front ridge landed on
+  /// the same near-black floor for three different trips and swallowed the
+  /// bottom of the cover. Scaling keeps the depth identical across all eight
+  /// hues without clamping at all.
+  Color tint(double factor, {double saturation = 1}) => HSLColor.fromAHSL(
+    base.alpha,
+    base.hue,
+    (base.saturation * saturation).clamp(0.0, 1.0),
+    (base.lightness * factor).clamp(0.05, 0.96),
+).toColor();
 
   @override
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
-    // Base: one diagonal gradient. Every stop is the trip's own hue, so this
-    // is a single colour getting lighter and darker, not two colours meeting.
+    // Sky: darker overhead, brightening towards the horizon.
+    //
+    // Brightening downwards rather than upwards is what makes this read as a
+    // landscape. A top-light sky and a bottom-light set of ridges merge into
+    // one dark mass, which is what the first version of this painter did.
     canvas.drawRect(
       rect,
       Paint()
         ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            tint(1.02, saturation: 0.72),
+            tint(1.30, saturation: 0.92),
+            tint(1.62, saturation: 0.52),
+          ],
+          stops: const <double>[0.0, 0.62, 1.0],
         ).createShader(rect),
     );
 
-    // The number of blobs scales with area.
-    //
-    // A fixed three was tuned against a 56px thumbnail and then looked almost
-    // empty on a 700x300 dashboard hero, where the eye has far more area to
-    // find detail in. Scaling with area keeps the same visual density at every
-    // size, which is the whole point of painting this rather than scaling a
-    // pre-rendered image.
-    final int blobCount = (size.width * size.height / 26000).round().clamp(
-      3,
-      9,
+    // Sun, drifting slowly. Moving it against the ridges is what makes the
+    // drift read as depth rather than as a change of colour.
+    final double sunX =
+        size.width * (0.28 + 0.055 * math.sin(t * 2 * math.pi));
+    final double sunY = size.height * 0.27;
+    final double sunR = size.shortestSide * 0.145;
+    canvas.drawCircle(
+      Offset(sunX, sunY),
+      sunR * 2.2,
+      Paint()..color = tint(1.62, saturation: 0.5).withValues(alpha: 0.28),
+    );
+    canvas.drawCircle(
+      Offset(sunX, sunY),
+      sunR,
+      Paint()..color = tint(2.05, saturation: 0.30),
     );
 
-    final double angle = t * 2 * math.pi;
-    for (int i = 0; i < blobCount; i++) {
-      final _Blob b = _blobAt(i);
-      final double wobble = math.sin(angle + b.phase) * 0.05;
-      final Offset centre = Offset(
-        size.width * (b.dx + wobble),
-        size.height * (b.dy - wobble * 0.6),
-      );
-      final double r = size.shortestSide * b.radius;
+    // Three ridges: each sits lower and darker than the one behind it.
+    final double phase = t * 2 * math.pi;
+    for (int layer = 0; layer < _ridges.length; layer++) {
+      final List<double> heights = _ridges[layer];
+      final double baseline = size.height * (0.63 + layer * 0.105);
+      final double amplitude = size.height * (0.12 - layer * 0.028);
+      final double drift = math.sin(phase + layer * 1.3) * size.width * 0.010;
 
-      canvas.drawCircle(
-        centre,
-        r,
-        Paint()
-          ..shader = RadialGradient(
-            colors: <Color>[
-              (b.tint ? Colors.white : Colors.black).withValues(
-                alpha: b.strength,
-              ),
-              (b.tint ? Colors.white : Colors.black).withValues(alpha: 0),
-            ],
-          ).createShader(Rect.fromCircle(center: centre, radius: r))
-          ..blendMode = b.tint ? BlendMode.plus : BlendMode.srcOver,
-      );
-    }
-
-    // Concentric rings, drawn only once the cover is big enough for them to
-    // read as detail rather than as noise. This is what stops a large cover
-    // looking like an empty gradient.
-    if (size.shortestSide > 90) {
-      final Offset ringCentre = Offset(
-        size.width * 0.78,
-        size.height * 0.30,
-      );
-      final double maxRadius = size.shortestSide * 0.75;
-      final Paint ring = Paint()
-        ..style = PaintingStyle.stroke
-        ..blendMode = BlendMode.plus;
-      for (int r = 1; r <= 4; r++) {
-        ring.color = Colors.white.withValues(
-          alpha: 0.055 * (1 - (r - 1) / 5),
+      final Path ridge = Path()..moveTo(-size.width * 0.08, size.height);
+      for (int i = 0; i < heights.length; i++) {
+        ridge.lineTo(
+          -size.width * 0.08 +
+              size.width * 1.16 * (i / (heights.length - 1)) +
+              drift,
+          baseline + (heights[i] - 0.5) * amplitude * 2,
         );
-        canvas.drawCircle(ringCentre, maxRadius * (r / 4.2), ring);
       }
+      ridge
+        ..lineTo(size.width * 1.16, size.height)
+        ..close();
+
+      canvas.drawPath(
+        ridge,
+        Paint()
+          ..color = tint(
+            0.88 - layer * 0.13,
+            saturation: 1.08 - layer * 0.16,
+          ),
+      );
     }
 
-    // A second, tighter highlight that sweeps the length of the cover.
-    final double sweep = size.width * (t * 1.6 - 0.3);
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment(sweep / size.width - 0.6, -0.4),
-          end: Alignment(sweep / size.width + 0.2, 0.4),
-          colors: <Color>[
-            Colors.white.withValues(alpha: 0),
-            Colors.white.withValues(alpha: 0.10),
-            Colors.white.withValues(alpha: 0),
-          ],
-          stops: const <double>[0.0, 0.5, 1.0],
-        ).createShader(rect)
-        ..blendMode = BlendMode.plus,
-    );
-
-    // Vignette, so overlaid text has a reliably dark corner to sit on.
+    // Vignette, so overlaid text always has a reliably dark corner to sit on.
+    // Kept light: the scrim above the artwork already darkens the bottom
+    // third when there is text, and the dashboard card has no text on the
+    // cover at all.
     canvas.drawRect(
       rect,
       Paint()
@@ -544,15 +537,16 @@ class _CoverPainter extends CustomPainter {
           radius: 0.95,
           colors: <Color>[
             Colors.black.withValues(alpha: 0),
-            Colors.black.withValues(alpha: 0.22),
+            Colors.black.withValues(alpha: 0.16),
           ],
-          stops: const <double>[0.55, 1.0],
+          stops: const <double>[0.58, 1.0],
         ).createShader(rect),
     );
   }
 
   @override
-  bool shouldRepaint(_CoverPainter old) => old.t != t || old.colors != colors || old.seed != seed;
+  bool shouldRepaint(_CoverPainter old) =>
+      old.t != t || old.colors != colors || old.seed != seed;
 }
 
 /// Small square destination thumbnail, used in lists and detail rows.
