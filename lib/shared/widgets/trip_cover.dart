@@ -7,21 +7,21 @@ import 'motion.dart';
 
 /// Cover artwork for a trip.
 ///
-/// Most trips have no `cover_image_url`, and an earlier version fell back to a
-/// flat two-colour duotone. That read badly in practice: the palette drifted
-/// into teal and cyan next to indigo, so covers looked like two clashing
-/// colours rather than one designed surface, and a flat fill has no depth at
-/// all.
+/// This is the fallback surface, shown when a trip has no
+/// `cover_image_url`. A trip with a real photo lays that photo over the top of
+/// this, so the artwork is never seen on one.
 ///
+/// An earlier version fell back to a flat two-colour duotone, which read as
+/// two clashing colours rather than one designed surface, and had no depth.
 /// This version paints actual artwork:
 ///
-///  * Every palette sits in one narrow violet/indigo/warm family. Trips stay
-///    distinguishable from each other without any of them fighting the brand.
-///  * Soft overlapping blobs and a vignette give depth, so an empty cover
-///    still looks composed rather than blank.
-///  * A slow drift animates the light across the artwork, which keeps a list
-///    of static cards from reading as a wall of dead rectangles. It respects
-///    the reduced-motion preference, and thumbnails do not animate at all.
+///  * Every cover is a single hue, shaded only by lightness. Depth comes from
+///    the ramp, not from a second colour.
+///  * Soft overlapping blobs and a vignette give it composition, so an empty
+///    cover still looks composed rather than blank.
+///  * A slow drift animates the light, which keeps a list of static cards
+///    from reading as a wall of dead rectangles. It respects the reduced-motion
+///    preference, and thumbnails do not animate at all.
 class TripCover extends StatelessWidget {
   const TripCover({
     super.key,
