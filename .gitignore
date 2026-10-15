@@ -57,6 +57,9 @@ app.*.map.json
 # credential - never commit it.
 .env.local
 !.env.local.example
+# supabase CLI local state. Holds the linked project ref and, once
+# "supabase login" runs, a cached access token. Never commit it.
+supabase/.temp/
 # Third-party dependencies restored by 
 pm install / pub get.
 # These are 300+ files of other people's code and binaries.
