@@ -58,25 +58,33 @@ class TripCover extends StatelessWidget {
   /// ticker.
   final bool animate;
 
-  /// One palette per trip, drawn from the warm ember family.
+  /// One colour per trip, drawn from the warm ember family.
+  ///
+  /// Each cover used to be a gradient across a *pair* of hues. That was
+  /// defended in a comment as "one colour that shifts", but from the outside a
+  /// maroon-to-crimson cover is plainly two colours, and two colours on one
+  /// surface is what made the grid look busy rather than varied. A trip now
+  /// gets a single hue; the gradient below is built by shifting only that
+  /// hue's lightness, so the cover still has depth and stays unmistakably one
+  /// colour.
   ///
   /// Deliberately no teal, green or cyan: beside the ember brand those hues
   /// read as a second, unrelated colour rather than a shade of the same
-  /// surface. Pairs are analogous — neighbouring hues at different lightness —
-  /// so the gradient stays one colour that shifts, not two that clash.
+  /// surface.
   ///
-  /// Distinguishability comes mostly from **lightness**, not hue: the whole warm
-  /// arc is only about 60 degrees wide, so eight palettes distinguished by hue
-  /// alone would look identical. These range from near-espresso to bright amber.
-  static const List<List<Color>> _palettes = <List<Color>>[
-    <Color>[Color(0xFF5B1E1E), Color(0xFF9F1239)], // maroon -> crimson
-    <Color>[Color(0xFF7C2D12), Color(0xFFC2410C)], // rust -> ember
-    <Color>[Color(0xFF713F12), Color(0xFFD97706)], // brown -> amber
-    <Color>[Color(0xFF3F2A20), Color(0xFF92400E)], // espresso -> sepia
-    <Color>[Color(0xFF6B2338), Color(0xFFBE123C)], // wine -> rose
-    <Color>[Color(0xFF7A1F1F), Color(0xFFC2410C)], // brick -> ember
-    <Color>[Color(0xFF4A2A2A), Color(0xFFB45309)], // dark clay -> amber
-    <Color>[Color(0xFF8C2F0A), Color(0xFFEA580C)], // copper -> orange
+  /// Distinguishability comes from **lightness**, not hue: the whole warm arc
+  /// is only about 60 degrees wide, so eight colours distinguished by hue
+  /// alone would look identical. These range from near-espresso to bright
+  /// amber.
+  static const List<Color> _baseColors = <Color>[
+    Color(0xFFB91C1C), // red
+    Color(0xFF9F1239), // crimson
+    Color(0xFFC2410C), // ember
+    Color(0xFFD97706), // amber
+    Color(0xFF7C2D12), // rust
+    Color(0xFFBE123C), // rose
+    Color(0xFF92400E), // sepia
+    Color(0xFFEA580C), // orange
   ];
 
   /// Deterministic palette index.
@@ -99,10 +107,32 @@ class TripCover extends StatelessWidget {
     h ^= h >> 15;
     h = (h * 0x846ca68b) & 0x7fffffff;
     h ^= h >> 16;
-    return h % _palettes.length;
+    return h % _baseColors.length;
   }
 
-  static List<Color> paletteFor(String seed) => _palettes[paletteIndex(seed)];
+  /// The trip's single colour.
+  static Color colorFor(String seed) => _baseColors[paletteIndex(seed)];
+
+  /// Lightness shades of [colorFor], darkest to lightest.
+  ///
+  /// Hue is held exactly constant across the stops, which is the point: the
+  /// cover must read as one colour. Saturation eases off on the light stop so
+  /// a deep base does not turn muddy when it is brightened.
+  static List<Color> paletteFor(String seed) {
+    final HSLColor hsl = HSLColor.fromColor(colorFor(seed));
+    Color at(double delta) {
+      final double saturation =
+          delta > 0 ? hsl.saturation * 0.9 : hsl.saturation;
+      return HSLColor.fromAHSL(
+        hsl.alpha,
+        hsl.hue,
+        saturation,
+        (hsl.lightness + delta).clamp(0.06, 0.86),
+      ).toColor();
+    }
+
+    return <Color>[at(-0.11), at(0.0), at(0.15)];
+  }
 
   /// A short typographic mark for the trip: the country code when the seed
   /// carries one, otherwise the first letter of the name.
@@ -417,7 +447,8 @@ class _CoverPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Rect rect = Offset.zero & size;
 
-    // Base: one diagonal gradient across the pair.
+    // Base: one diagonal gradient. Every stop is the trip's own hue, so this
+    // is a single colour getting lighter and darker, not two colours meeting.
     canvas.drawRect(
       rect,
       Paint()

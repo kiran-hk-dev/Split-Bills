@@ -72,10 +72,51 @@ void main() {
       expect(TripCover.paletteFor('JP:東京'), isNotEmpty);
     });
 
-    test('every palette has two colours for the gradient', () {
+    test('every cover is a single hue, shaded only by lightness', () {
+      // The reported complaint: a trip cover painted a gradient across two
+      // different hues, so it read as two colours instead of one. The contract
+      // now is one hue per trip, with depth from lightness alone.
       for (int i = 0; i < 8; i++) {
-        expect(TripCover.paletteFor(i.toString()), hasLength(2));
+        final seed = i.toString();
+        final List<Color> shades = TripCover.paletteFor(seed);
+        expect(shades, hasLength(3), reason: 'seed $seed needs a 3-stop ramp');
+
+        final double hue = HSLColor.fromColor(shades.first).hue;
+        for (final Color c in shades) {
+          expect(
+            (HSLColor.fromColor(c).hue - hue).abs(),
+            lessThan(1.0),
+            reason: 'seed $seed drifted to a second hue at $c',
+          );
+        }
       }
+    });
+
+    test('the ramp actually varies lightness, so it is not a flat fill', () {
+      for (int i = 0; i < 8; i++) {
+        final List<double> l =
+            TripCover.paletteFor(i.toString()).map((c) => HSLColor.fromColor(c).lightness).toList();
+        expect(l.first, lessThan(l.last), reason: 'seed $i is not a ramp');
+        expect(l[1] - l.first, greaterThan(0.05), reason: 'seed $i shadows are too flat');
+      }
+    });
+
+    test('real trips get visibly different colours', () {
+      // Compared on the colour rather than the index, because two indices can
+      // only differ by resolving to different colours. Six realistic trips
+      // should not collapse onto one or two.
+      final Set<int> used = <int>{
+        for (final String seed in <String>[
+          'JP:Tokyo',
+          'IN:Goa',
+          'TH:Bangkok',
+          'FR:Paris',
+          'IS:Reykjavik',
+          'PE:Cusco',
+        ])
+          TripCover.colorFor(seed).toARGB32(),
+      };
+      expect(used.length, greaterThanOrEqualTo(4));
     });
   });
 

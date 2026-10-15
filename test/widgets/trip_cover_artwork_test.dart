@@ -145,9 +145,9 @@ void main() {
   testWidgets('no palette reintroduces the green-to-cyan cast that was removed', (
     WidgetTester tester,
   ) async {
-    for (int i = 0; i < 8; i++) {
+for (int i = 0; i < 8; i++) {
       final List<Color> palette = TripCover.paletteFor('$i:seed');
-      expect(palette, hasLength(2));
+      expect(palette, hasLength(3));
 
       for (final Color c in palette) {
         final double hue = HSVColor.fromColor(c).hue;
@@ -159,6 +159,27 @@ void main() {
           isFalse,
           reason: 'palette $i contains $c at hue ${hue.toStringAsFixed(0)}, '
               'which is green-to-cyan',
+        );
+      }
+    }
+  });
+
+  testWidgets('a cover is one hue end to end, not two meeting', (
+    WidgetTester tester,
+  ) async {
+    // The ramp is built from lightness alone. A shade that crosses 0 degrees
+    // on the hue wheel would wrap maroon into rose and reintroduce exactly the
+    // two-colour look this replaced.
+    for (int i = 0; i < 8; i++) {
+      final List<double> hues = TripCover.paletteFor('$i:seed')
+          .map((c) => HSLColor.fromColor(c).hue)
+          .toList();
+      for (final double h in hues) {
+        expect(
+          h,
+          lessThan(359.5),
+          reason: 'seed $i wrapped the hue wheel at $h, so the ramp splits '
+              'into two colours',
         );
       }
     }
