@@ -58,21 +58,25 @@ class TripCover extends StatelessWidget {
   /// ticker.
   final bool animate;
 
-  /// One palette per trip, all drawn from the same violet/indigo/warm family.
+  /// One palette per trip, drawn from the warm ember family.
   ///
-  /// Deliberately no teal, green or cyan: next to the indigo brand those hues
+  /// Deliberately no teal, green or cyan: beside the ember brand those hues
   /// read as a second, unrelated colour rather than a shade of the same
   /// surface. Pairs are analogous — neighbouring hues at different lightness —
-  /// so the gradient stays one colour that shifts, not two colours that clash.
+  /// so the gradient stays one colour that shifts, not two that clash.
+  ///
+  /// Distinguishability comes mostly from **lightness**, not hue: the whole warm
+  /// arc is only about 60 degrees wide, so eight palettes distinguished by hue
+  /// alone would look identical. These range from near-espresso to bright amber.
   static const List<List<Color>> _palettes = <List<Color>>[
-    <Color>[Color(0xFF2E2A6E), Color(0xFF5B21B6)], // indigo -> violet
-    <Color>[Color(0xFF4C1D95), Color(0xFF7E22CE)], // violet
-    <Color>[Color(0xFF1E2F7A), Color(0xFF3B3E8C)], // royal -> indigo
-    <Color>[Color(0xFF46205C), Color(0xFF7A2D6F)], // plum -> wine
-    <Color>[Color(0xFF242A4A), Color(0xFF413C7A)], // slate -> indigo
-    <Color>[Color(0xFF4A1F38), Color(0xFF8A3A5E)], // wine
-    <Color>[Color(0xFF2A2352), Color(0xFF6D28D9)], // dusk -> violet
-    <Color>[Color(0xFF3F2A46), Color(0xFF8A4B2E)], // ember (the warm one)
+    <Color>[Color(0xFF5B1E1E), Color(0xFF9F1239)], // maroon -> crimson
+    <Color>[Color(0xFF7C2D12), Color(0xFFC2410C)], // rust -> ember
+    <Color>[Color(0xFF713F12), Color(0xFFD97706)], // brown -> amber
+    <Color>[Color(0xFF3F2A20), Color(0xFF92400E)], // espresso -> sepia
+    <Color>[Color(0xFF6B2338), Color(0xFFBE123C)], // wine -> rose
+    <Color>[Color(0xFF7A1F1F), Color(0xFFC2410C)], // brick -> ember
+    <Color>[Color(0xFF4A2A2A), Color(0xFFB45309)], // dark clay -> amber
+    <Color>[Color(0xFF8C2F0A), Color(0xFFEA580C)], // copper -> orange
   ];
 
   /// Deterministic palette index.

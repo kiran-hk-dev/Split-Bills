@@ -142,7 +142,7 @@ class _ConverterPageState extends ConsumerState<ConverterPage> {
     final ThemeData theme = Theme.of(context);
 
     return PageScaffold(
-      title: 'Currency converter',
+      title: 'Convert',
       // PageScrollView carries the width cap, the pointer-aware scrollbar and
       // the bottom clearance. The form keeps its own amount fields, the fee
       // validator and the swap behaviour exactly as they were.
@@ -473,6 +473,21 @@ class _RateNotice extends StatelessWidget {
 class _HistoryList extends ConsumerWidget {
   const _HistoryList();
 
+/// Loads saved conversions, converting an uninitialised client into an async
+  /// error so the FutureBuilder can render an explanation instead of the tab
+  /// throwing mid-build.
+  static Future<List<ConversionRecord>> _loadHistory(WidgetRef ref) async {
+    try {
+      return await ref
+          .read(tripRepositoryProvider)
+          .converter
+          .history(limit: 20);
+    } on StateError {
+      throw const RepositoryException(
+        'Saved conversions need a signed-in session and a connection.',
+      );
+    }
+  }
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (AppConfig.demoMode) {
@@ -484,9 +499,13 @@ class _HistoryList extends ConsumerWidget {
       );
     }
 
-    return FutureBuilder<List<ConversionRecord>>(
-      future: ref.read(tripRepositoryProvider).converter.history(limit: 20),
-      builder: (BuildContext context, AsyncSnapshot<List<ConversionRecord>> snapshot) {
+return FutureBuilder<List<ConversionRecord>>(
+        // Wrapped rather than read inline. `tripRepositoryProvider` builds its
+        // repository from `SupabaseService.instance`, which throws whenever the
+        // client is not initialised — and since this became a primary tab, that
+        // throw happened on tap rather than only on an explicit deep link.
+        future: _loadHistory(ref),
+        builder: (BuildContext context, AsyncSnapshot<List<ConversionRecord>> snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const AppCard(
             child: Text(

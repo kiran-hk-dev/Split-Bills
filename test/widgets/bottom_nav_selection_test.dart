@@ -56,22 +56,26 @@ void main() {
 
   /// The colour painted behind a destination's icon.
   ///
-  /// The pill is a sibling of the label rather than an ancestor, so it has to be
-  /// found by its own key.
+/// The pill is a sibling of the label rather than an ancestor, so it has to be
+  /// found by its own key. Returns null when the key is not found, and the
+  /// caller treats null as "not selected" — a missing pill must never read as a
+  /// selected one, which is how this test first produced a false failure.
   Color? indicatorFor(WidgetTester tester, AppTab tab) {
     final Finder pill = find.byKey(ValueKey<String>('nav-pill-${tab.route}'));
     if (pill.evaluate().isEmpty) return null;
     final AnimatedContainer container =
         tester.widget<AnimatedContainer>(pill.first);
     final BoxDecoration? decoration = container.decoration as BoxDecoration?;
-    return decoration?.color;
+    final Color? color = decoration?.color;
+    return color == null || color == Colors.transparent ? null : color;
   }
 
   /// The routes whose pill is currently tinted.
   Set<String> selectedRoutes(WidgetTester tester) => <String>{
     for (final AppTab tab in AppTab.values)
-      if (indicatorFor(tester, tab) != Colors.transparent) tab.route,
+      if (indicatorFor(tester, tab) != null) tab.route,
   };
+
 
   Future<void> tapTab(WidgetTester tester, String label) async {
     await tester.tap(inBar(tester, label));
@@ -110,10 +114,10 @@ void main() {
   ) async {
     await pumpApp(tester, const Size(390, 844));
 
-    await tapTab(tester, 'Assistant');
+    await tapTab(tester, AppTab.assistant.label);
     expect(selectedRoutes(tester), <String>{'assistant'});
 
-    await tapTab(tester, 'Assistant');
+    await tapTab(tester, AppTab.assistant.label);
     expect(
       selectedRoutes(tester),
       <String>{'assistant'},

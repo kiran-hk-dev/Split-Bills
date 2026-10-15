@@ -5,11 +5,27 @@ import 'package:flutter/services.dart';
 
 /// Design tokens for TripSplit World.
 ///
-/// Palette intent: an "aurora" brand — indigo carries the primary actions,
-/// violet and teal provide the accent range, cyan is reserved for
-/// informational surfaces, and amber/red stay reserved for warnings and risk.
-/// The canvas is a cool off-white rather than the previous warm paper tone, so
-/// the indigo brand reads as crisp rather than muddy.
+/// Palette intent: **"Ember & Parchment"** — a warm, travel-shaped identity.
+///
+/// This replaces an earlier indigo/violet/teal ramp. Two redesign passes kept
+/// that palette, which is why the app never felt like it had changed: the
+/// motion and layout work was real, but the app still looked the same colour
+/// as before.
+///
+/// The identity:
+///
+///  * a warm parchment canvas rather than a cool near-white
+///  * ember as the primary — burnt orange, the colour of sunset and of a
+///    departure board
+///  * a ramp running ember -> orange -> rose, so a gradient through it reads
+///    as one light travelling rather than three competing colours
+///  * warm browns for text rather than blue-greys, so the whole surface reads
+///    as paper rather than as a screen
+///  * warm near-black dark mode instead of blue-black
+///
+/// Green, cyan and teal survive **only** as semantics (positive, info). They
+/// are excluded from the brand ramp, because a brand green beside an ember
+/// brand is the exact clash this palette exists to avoid.
 ///
 /// Every foreground/background pair below is measured, not eyeballed, and is
 /// asserted in `test/core/theme/contrast_test.dart`. Measured ratios are quoted
@@ -17,91 +33,76 @@ import 'package:flutter/services.dart';
 class AppColors {
   const AppColors._();
 
-  // ---- Brand core ---------------------------------------------------------
+// ---- Brand core ---------------------------------------------------------
 
-  /// Primary brand fill. 6.29:1 against [surface], so it carries white button
-  /// labels and is itself readable as text on the canvas (5.88:1).
-  static const Color primary = Color(0xFF4F46E5);
+  /// Primary brand fill. 5.18:1 against [surface], so it carries a white
+  /// button label, and 4.85:1 against [canvas] so it is readable as text.
+  static const Color primary = Color(0xFFC2410C);
 
-  /// Darker indigo for headings, emphasis and hover states where [primary]
-  /// would be too light. 9.93:1 on [surface].
-  static const Color primaryDeep = Color(0xFF3730A3);
+  /// Darker ember for headings, emphasis and hover states. 9.34:1 on
+  /// [surface].
+  static const Color primaryDeep = Color(0xFF9A3412);
 
-  /// Lighter indigo used for tinted fills and soft backgrounds.
-  static const Color primarySoft = Color(0xFFEEF0FE);
+  /// Tinted ember for selected chips, soft fills and card accents.
+  static const Color primarySoft = Color(0xFFFDEBE0);
 
-  /// Accent violet. Sits between indigo and teal on the wheel so gradients
-  /// through it read as one continuous sweep instead of three clashing hues.
-  static const Color violet = Color(0xFF7C3AED);
-  static const Color violetSoft = Color(0xFFF3EAFF);
+  /// Mid-ramp orange. The gradient's middle stop.
+  static const Color orange = Color(0xFFEA580C);
 
-  /// Accent cyan, used for informational surfaces and the far end of the
-  /// brand gradient.
-  static const Color cyan = Color(0xFF0891B2);
-  static const Color cyanSoft = Color(0xFFE0F5FB);
+  /// The ramp's far end. Rose rather than a cool hue, so the sweep stays warm.
+  static const Color rose = Color(0xFFBE123C);
+  static const Color roseSoft = Color(0xFFFDE8EC);
 
   // ---- Legacy brand names, kept so existing call sites keep compiling ------
   //
-  // These are no longer the primary identity but are still referenced by the
-  // money, country and emergency reference data for categorical colouring.
+  // No longer the primary identity but still referenced by the money, country
+  // and emergency reference data for categorical colouring.
 
-  static const Color navy = Color(0xFF15142E);
-  static const Color navy700 = Color(0xFF1E1D3E);
-  static const Color navy500 = Color(0xFF3A3866);
-
-  /// Deep teal. 5.47:1 against white, which is why it — and not the lighter
-  /// `teal600` — is the fill used behind white text.
-  static const Color teal = Color(0xFF0F766E);
-
-  /// Mid teal for accents only. 3.74:1 on white, so it must never sit behind
-  /// body-size white text.
-  static const Color teal600 = Color(0xFF0D9488);
-  static const Color emerald = Color(0xFF10B981);
-  static const Color mint = Color(0xFFD1FAE5);
+  /// Deep amber. 4.85:1 on white, so it is safe behind white text.
+  static const Color teal = Color(0xFFB45309);
+  static const Color teal600 = Color(0xFFD97706);
+  static const Color emerald = Color(0xFF16A34A);
+  static const Color mint = Color(0xFFDCFCE7);
 
   // ---- Surfaces -----------------------------------------------------------
 
-  static const Color canvas = Color(0xFFF6F6FB);
+  /// Warm parchment rather than a cool grey-white.
+  static const Color canvas = Color(0xFFFBF7F2);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFEFEFF6);
-  static const Color border = Color(0xFFE2E2EE);
+  static const Color surfaceMuted = Color(0xFFF4EDE3);
+  static const Color border = Color(0xFFE7DCCB);
 
   /// Border for interactive controls (text fields, outlined buttons).
   ///
   /// WCAG 1.4.11 wants 3:1 for the boundary that identifies a control. This
-  /// measures 3.36:1 on [surface] and 3.12:1 on [canvas], and sits 2.62:1
-  /// above [border] so the hierarchy — a card edge is a whisper, a control
-  /// edge is a sentence — still reads.
-  static const Color borderStrong = Color(0xFF8A8AA3);
+  /// measures 3.28:1 on [surface] and 3.07:1 on [canvas], and sits 2.42:1
+  /// above [border] so a control edge still reads heavier than a card edge.
+  static const Color borderStrong = Color(0xFF9A8C7B);
 
   // ---- Text ---------------------------------------------------------------
 
-  /// 16.64:1 on [canvas], 17.93:1 on [surface].
-  static const Color ink = Color(0xFF15142E);
+  /// 15.99:1 on [canvas]. A warm near-black, not a blue-black.
+  static const Color ink = Color(0xFF241A12);
 
-  /// 6.96:1 on [canvas], 7.50:1 on [surface].
-  static const Color inkMuted = Color(0xFF525270);
+  /// 7.45:1 on [canvas].
+  static const Color inkMuted = Color(0xFF5B4F42);
 
-  /// Tinted placeholder and de-emphasised text. 4.84:1 on [canvas] and 5.21:1
-  /// on [surface] — real text, not decoration, so it clears AA rather than
-  /// being greyed out until it disappears.
-  static const Color inkFaint = Color(0xFF6A6A88);
+  /// Tinted placeholder and de-emphasised text. 4.98:1 on [canvas] — real
+  /// text, not decoration, so it clears AA rather than being greyed out until
+  /// it disappears.
+  static const Color inkFaint = Color(0xFF77695A);
 
   // ---- Status -------------------------------------------------------------
+  //
+  // Semantic only. This is the one place a green is allowed, and it sits
+  // deliberately outside the warm brand ramp so "good" never reads as "brand".
 
-  /// 4.84:1 on [positiveSoft].
-  static const Color positive = Color(0xFF047857);
-  static const Color positiveSoft = Color(0xFFD1FAE5);
-
-  /// 5.37:1 on [warningSoft].
-  static const Color warning = Color(0xFFA44808);
+  static const Color positive = Color(0xFF15803D);
+  static const Color positiveSoft = Color(0xFFDCFCE7);
+  static const Color warning = Color(0xFFB45309);
   static const Color warningSoft = Color(0xFFFEF3C7);
-
-  /// 5.38:1 on [dangerSoft], and 6.57:1 with white text on top of it.
   static const Color danger = Color(0xFFB42318);
   static const Color dangerSoft = Color(0xFFFEE2E2);
-
-  /// 5.49:1 on [infoSoft].
   static const Color info = Color(0xFF1D4ED8);
   static const Color infoSoft = Color(0xFFDBEAFE);
 
@@ -110,12 +111,11 @@ class AppColors {
 
   // ---- Status, dark-theme variants ----------------------------------------
   //
-  // The light-theme status colours above are dark enough to read as text on
-  // white, which makes them far too dim on a near-black canvas: `inkFaint`-on-
-  // dark measured 2.6:1 and was effectively invisible. These are the lifted
+  // The light-theme status colours are dark enough to read as text on white,
+  // which makes them far too dim on a near-black canvas. These are the lifted
   // equivalents used when the active brightness is dark.
 
-  static const Color positiveDark = Color(0xFF6EE7B7);
+  static const Color positiveDark = Color(0xFF86EFAC);
   static const Color warningDark = Color(0xFFFCD34D);
   static const Color dangerDark = Color(0xFFFCA5A5);
   static const Color infoDark = Color(0xFF93C5FD);
@@ -136,51 +136,51 @@ class AppColors {
       brightness == Brightness.dark ? infoDark : info;
 
   // ---- Dark theme surfaces ------------------------------------------------
+  //
+  // Warm near-black rather than the blue-black used previously, so dark mode
+  // belongs to the same brand as light mode.
 
-  static const Color darkCanvas = Color(0xFF0B0B14);
-  static const Color darkSurface = Color(0xFF15151F);
-  static const Color darkSurfaceMuted = Color(0xFF1E1E2C);
+  static const Color darkCanvas = Color(0xFF12100E);
+  static const Color darkSurface = Color(0xFF1C1815);
+  static const Color darkSurfaceMuted = Color(0xFF2A2320);
 
-  /// Dark-theme border for interactive controls.
-  ///
-  /// 3.19:1 on [darkSurface] and 3.45:1 on [darkCanvas]. Kept in the
-  /// blue-violet family so it belongs to the brand instead of reading as
-  /// neutral grey.
-  static const Color darkBorder = Color(0xFF63638C);
+  /// 3.39:1 on [darkSurface] and 3.65:1 on [darkCanvas]. Kept in the warm
+  /// brown family so it belongs to the theme rather than reading as grey.
+  static const Color darkBorder = Color(0xFF7A6A5B);
 
-  /// 16.84:1 on [darkCanvas].
-  static const Color darkInk = Color(0xFFEDEDF7);
+  /// 16.65:1 on [darkCanvas].
+  static const Color darkInk = Color(0xFFF6EFE7);
 
-  /// 7.58:1 on [darkSurface].
-  static const Color darkInkMuted = Color(0xFFA5A5C4);
+  /// 8.80:1 on [darkSurface].
+  static const Color darkInkMuted = Color(0xFFC3B5A6);
 }
 
 /// The brand gradient and the gradients derived from it.
 ///
-/// The sweep runs indigo -> violet -> teal. Those three hues are roughly
-/// evenly spaced neighbours on the colour wheel, which is what stops the
-/// gradient from banding into two clashing colour zones in the middle.
+/// The sweep runs ember -> orange -> rose. Those are neighbours on the warm
+/// half of the wheel, so the gradient reads as one light travelling rather
+/// than three competing colours.
 class AppGradients {
   const AppGradients._();
 
   static const List<Color> brand = <Color>[
-    Color(0xFF4F46E5),
-    Color(0xFF7C3AED),
-    Color(0xFF0D9488),
+    Color(0xFFC2410C),
+    Color(0xFFEA580C),
+    Color(0xFFBE123C),
   ];
 
   /// Two-stop version for large fills where the three-stop sweep would read
   /// as a stripe rather than a gradient.
   static const List<Color> brandShort = <Color>[
-    Color(0xFF4F46E5),
-    Color(0xFF7C3AED),
+    Color(0xFFC2410C),
+    Color(0xFFEA580C),
   ];
 
   /// Same hue family, lifted for dark mode so it does not glow harshly.
   static const List<Color> brandDark = <Color>[
-    Color(0xFF6D67F0),
-    Color(0xFF9B6BF5),
-    Color(0xFF2DD4BF),
+    Color(0xFFFB923C),
+    Color(0xFFFDBA74),
+    Color(0xFFFB7185),
   ];
 
   static LinearGradient linear({
@@ -377,19 +377,20 @@ class AppTheme {
 
     // In dark mode the primary is a light indigo with dark ink on top, rather
     // than the deep indigo with white text. A saturated #4F46E5 fill on a near
-    // black canvas vibrates, and white-on-indigo only clears 4.5:1 with room
-    // to spare for large text only.
+    // In dark mode the primary is a light ember with dark ink on top, rather
+    // than the deep ember with white text. A saturated #C2410C fill on a warm
+    // near-black canvas vibrates, and white-on-ember only clears 4.5:1.
     final Color primaryFill = isDark
-        ? const Color(0xFF818CF8)
+        ? const Color(0xFFFB923C)
         : AppColors.primary;
     final Color onPrimary = isDark
-        ? const Color(0xFF12102B)
+        ? const Color(0xFF2B1206)
         : Colors.white;
     final Color secondaryFill = isDark
-        ? const Color(0xFF5EEAD4)
+        ? const Color(0xFFFCD34D)
         : AppColors.teal;
     final Color onSecondary = isDark
-        ? const Color(0xFF04231F)
+        ? const Color(0xFF2B1A03)
         : Colors.white;
 
     final ColorScheme scheme =
@@ -400,35 +401,34 @@ class AppTheme {
           primary: primaryFill,
           onPrimary: onPrimary,
           primaryContainer: isDark
-              ? const Color(0xFF2B2A63)
+              ? const Color(0xFF4A2312)
               : AppColors.primarySoft,
           onPrimaryContainer: isDark
-              ? const Color(0xFFDDDCFF)
+              ? const Color(0xFFFFDCC8)
               : AppColors.primaryDeep,
           secondary: secondaryFill,
           onSecondary: onSecondary,
           // Material draws the selected segment of every SegmentedButton, and
-          // every ChoiceChip row, from secondaryContainer. It was set to mint
-          // green, so "Balanced" and every other trip-style / itinerary-pace
-          // option rendered green next to an indigo brand - the exact clash
-          // this palette exists to avoid.
+          // every ChoiceChip row, from secondaryContainer. Green there made
+          // "Balanced" and every other trip-style option render green next to
+          // the brand. Amber keeps the second stop in-family.
           //
           // Mint stays available as [AppColors.positiveSoft] for places that
           // genuinely mean "good", rather than being the default accent.
           secondaryContainer: isDark
-              ? const Color(0xFF2E2456)
-              : AppColors.violetSoft,
+              ? const Color(0xFF4A3312)
+              : const Color(0xFFFEF0D4),
           onSecondaryContainer: isDark
-              ? const Color(0xFFE4DBFF)
-              : const Color(0xFF5B21B6),
-          tertiary: isDark ? const Color(0xFFC4B5FD) : AppColors.violet,
-          onTertiary: isDark ? const Color(0xFF1F1147) : Colors.white,
+              ? const Color(0xFFFDE7BC)
+              : const Color(0xFF92400E),
+          tertiary: isDark ? const Color(0xFFFDA4AF) : AppColors.rose,
+          onTertiary: isDark ? const Color(0xFF3B0713) : Colors.white,
           tertiaryContainer: isDark
-              ? const Color(0xFF3B2470)
-              : AppColors.violetSoft,
+              ? const Color(0xFF5C1226)
+              : AppColors.roseSoft,
           onTertiaryContainer: isDark
-              ? const Color(0xFFE9DDFF)
-              : const Color(0xFF5B21B6),
+              ? const Color(0xFFFFD9E0)
+              : const Color(0xFF9F1239),
           surface: isDark ? AppColors.darkSurface : AppColors.surface,
           onSurface: isDark ? AppColors.darkInk : AppColors.ink,
           surfaceContainerLowest: isDark

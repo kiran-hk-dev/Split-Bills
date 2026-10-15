@@ -32,11 +32,19 @@ enum AppTab {
   ),
   expenses(
     'expenses',
-    'Expenses',
+    'Spend',
     'Expenses',
     Icons.receipt_long_outlined,
     Icons.receipt_long,
     Icons.receipt_long_rounded,
+  ),
+  convert(
+    'convert',
+    'Convert',
+    'Currency',
+    Icons.currency_exchange_outlined,
+    Icons.currency_exchange,
+    Icons.currency_exchange_rounded,
   ),
   explore(
     'explore',
@@ -48,8 +56,8 @@ enum AppTab {
   ),
   assistant(
     'assistant',
-    'Assistant',
-    'Assistant',
+    'Safety',
+    'Travel safety',
     Icons.health_and_safety_outlined,
     Icons.health_and_safety,
     Icons.health_and_safety_rounded,
@@ -66,12 +74,11 @@ enum AppTab {
 
   final String route;
 
-  /// Label for the phone bottom bar, where space is tight.
+  /// Label for the phone bottom bar, where space is tight. Kept to one short
+  /// word so six destinations still fit at 320px.
   final String label;
 
-  /// Label for the side rail. "My trips" reads better than "Trips" beside
-  /// the other four destinations, where "Trips" could be misread as a tab
-  /// rather than a list of the user's own.
+  /// Label for the side rail, where there is room for the longer form.
   final String railLabel;
 
   final IconData icon;
@@ -258,11 +265,28 @@ class _BottomNavBar extends StatelessWidget {
               for (int i = 0; i < tabs.length; i++)
                 Expanded(
                   child: _BottomNavItem(
-                    tab: tabs[i],
+                    navId: tabs[i].route,
+                    label: tabs[i].label,
+                    icon: tabs[i].icon,
+                    selectedIcon: tabs[i].selectedIcon,
+                    filledIcon: tabs[i].filledIcon,
                     selected: i == selectedIndex,
                     onTap: () => onSelected(i),
                   ),
                 ),
+              // More is not a destination — it opens the sheet of everything
+              // that did not earn a permanent slot.
+              Expanded(
+                child: _BottomNavItem(
+                  navId: 'more',
+                  label: 'More',
+                  icon: Icons.more_horiz_rounded,
+                  selectedIcon: Icons.more_horiz_rounded,
+                  filledIcon: Icons.more_horiz_rounded,
+                  selected: false,
+                  onTap: () => showMoreSheet(context),
+                ),
+              ),
             ],
           ),
         ),
@@ -273,12 +297,23 @@ class _BottomNavBar extends StatelessWidget {
 
 class _BottomNavItem extends StatelessWidget {
   const _BottomNavItem({
-    required this.tab,
+    required this.navId,
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.filledIcon,
     required this.selected,
     required this.onTap,
   });
 
-  final AppTab tab;
+/// Stable identifier for the pill key. Labels change (Expenses became Spend,
+  /// Assistant became Safety), so keys and tests key off this instead.
+  final String navId;
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final IconData filledIcon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -300,7 +335,7 @@ class _BottomNavItem extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: tab.label,
+      label: label,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -315,7 +350,7 @@ class _BottomNavItem extends StatelessWidget {
                 // Keyed per destination so the selected state can be asserted
                 // directly — the label is a sibling of this pill, not a
                 // descendant, so it cannot be used to find it.
-                key: ValueKey<String>('nav-pill-${tab.route}'),
+                key: ValueKey<String>('nav-pill-$navId'),
                 duration: AppDurations.normal,
                 curve: AppCurves.entrance,
                 height: 34,
@@ -341,7 +376,7 @@ class _BottomNavItem extends StatelessWidget {
                   child: AnimatedSwitcher(
                     duration: AppDurations.normal,
                     child: Icon(
-                      selected ? tab.filledIcon : tab.icon,
+                      selected ? filledIcon : icon,
                       key: ValueKey<bool>(selected),
                       size: 21,
                       color: selected ? activeColor : inactiveColor,
@@ -362,7 +397,7 @@ class _BottomNavItem extends StatelessWidget {
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
                     ),
                 child: Text(
-                  tab.label,
+                  label,
                   maxLines: 1,
                   overflow: TextOverflow.clip,
                 ),
@@ -532,7 +567,7 @@ class _SideNavItem extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: tab.label,
+      label: tab.railLabel,
       child: Tooltip(
         message: extended ? '' : tab.label,
         child: InkWell(
@@ -593,6 +628,129 @@ class _SideNavItem extends StatelessWidget {
   }
 }
 
+/// Destinations that do not earn a permanent tab but must stay reachable.
+///
+/// Six tabs is already the most a phone bottom bar should carry — at 320px a
+/// seventh leaves roughly 45px per item. Rather than hide these behind a
+/// profile menu buried three taps deep, they collect into one sheet reachable
+/// from the tab bar and the rail.
+const List<({String label, IconData icon, String route, String hint})>
+kMoreDestinations = <({
+  String label,
+  IconData icon,
+  String route,
+  String hint,
+})>[
+  (
+    label: 'Travel documents',
+    icon: Icons.folder_outlined,
+    route: '/documents',
+    hint: 'Passport, insurance, visas and tickets',
+  ),
+  (
+    label: 'Packing & checklists',
+    icon: Icons.luggage_outlined,
+    route: '/trips',
+    hint: 'Per-trip checklists that build themselves',
+  ),
+  (
+    label: 'AI trip planner',
+    icon: Icons.auto_awesome_outlined,
+    route: '/ai-planner',
+    hint: 'Draft an itinerary, then edit it',
+  ),
+  (
+    label: 'Notifications',
+    icon: Icons.notifications_none_rounded,
+    route: '/notifications',
+    hint: 'Activity and requests across your trips',
+  ),
+  (
+    label: 'Settings',
+    icon: Icons.settings_outlined,
+    route: '/settings',
+    hint: 'Currency, language, privacy',
+  ),
+  (
+    label: 'Your profile',
+    icon: Icons.person_outline_rounded,
+    route: '/profile',
+    hint: 'Documents, passport, sign out',
+  ),
+];
+
+/// Opens the "everything else" sheet.
+Future<void> showMoreSheet(BuildContext context) {
+  return showAppSheet<void>(
+    context: context,
+    builder: (BuildContext sheetContext) {
+      final ThemeData theme = Theme.of(sheetContext);
+      return SafeArea(
+        child: ConstrainedBox(
+          // On a desktop browser a sheet is otherwise the full window width,
+          // which leaves a single very wide column of rows.
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.xl,
+                  AppSpacing.sm,
+                  AppSpacing.xl,
+                  AppSpacing.md,
+                ),
+                child: Text('More', style: theme.textTheme.titleLarge),
+              ),
+              const Divider(height: 1),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    for (final ({String hint, IconData icon, String label, String route}) d
+                        in kMoreDestinations)
+                      ListTile(
+                        leading: Icon(d.icon),
+                        title: Text(d.label),
+                        subtitle: Text(d.hint),
+                        trailing: const Icon(Icons.chevron_right, size: 20),
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          // Pushed after the sheet closes so the router is not
+                          // navigated while a modal route is still on top.
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (context.mounted) context.push(d.route);
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) context.go('/home');
+                      });
+                    },
+                    child: const Text('Back to Home'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
 /// Profile and settings, pinned to the foot of the rail.
 class _SideNavUtility extends StatelessWidget {
   const _SideNavUtility({required this.extended});
@@ -642,6 +800,39 @@ class _SideNavUtility extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        Semantics(
+          button: true,
+          label: 'More',
+          child: InkWell(
+            onTap: () => showMoreSheet(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: SizedBox(
+              height: 44,
+              child: Row(
+                mainAxisAlignment:
+                    extended ? MainAxisAlignment.start : MainAxisAlignment.center,
+                children: <Widget>[
+                  if (extended) ...<Widget>[
+                    const SizedBox(width: AppSpacing.md),
+                    Icon(Icons.more_horiz_rounded, size: 20, color: inactiveFg),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Text(
+                        'More',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: inactiveFg,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ] else
+                    Icon(Icons.more_horiz_rounded, size: 20, color: inactiveFg),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
         row(Icons.notifications_none_rounded, 'Notifications', '/notifications'),
         const SizedBox(height: AppSpacing.xs),
         row(Icons.settings_outlined, 'Settings', '/settings'),

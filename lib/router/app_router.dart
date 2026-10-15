@@ -257,6 +257,11 @@ final GoRouter appRouter = GoRouter(
               _slidePage(state, const AddExpensePage()),
         ),
         GoRoute(
+          path: '/convert',
+          pageBuilder: (BuildContext context, GoRouterState state) =>
+              _fadePage(state, const ConverterPage()),
+        ),
+        GoRoute(
           path: '/explore',
           pageBuilder: (BuildContext context, GoRouterState state) =>
               _fadePage(state, const ExplorePage()),
@@ -279,12 +284,6 @@ final GoRouter appRouter = GoRouter(
       ],
     ),
 
-    // ---------------- Full-screen routes ------------------------------------
-    GoRoute(
-      path: '/converter',
-      pageBuilder: (BuildContext context, GoRouterState state) =>
-          _slidePage(state, const ConverterPage()),
-    ),
     GoRoute(
       path: '/ai-planner',
       pageBuilder: (BuildContext context, GoRouterState state) =>
@@ -330,6 +329,7 @@ final GoRouter appRouter = GoRouter(
 AppTab _tabFor(String location) {
   if (location.startsWith('/trips')) return AppTab.trips;
   if (location.startsWith('/expenses')) return AppTab.expenses;
+  if (location.startsWith('/convert')) return AppTab.convert;
   if (location.startsWith('/explore')) return AppTab.explore;
   if (location.startsWith('/assistant')) return AppTab.assistant;
   return AppTab.home;
