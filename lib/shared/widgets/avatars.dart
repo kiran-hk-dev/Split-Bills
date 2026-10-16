@@ -33,6 +33,12 @@ class MemberAvatar extends StatelessWidget {
 
   /// Categorical avatar fills.
   ///
+  /// Deliberately outside the brand ramp, and that is the one place the ember
+  /// palette is not applied. An avatar's job is to tell two people apart at a
+  /// glance, and pulling these towards the brand would collapse them into
+  /// neighbouring shades of orange. Distinctness wins here; the fills are
+  /// small, sit on a neutral tint, and never carry text-critical meaning.
+  ///
   /// All of these sit at 4.5:1 or better against the 14%-alpha tint drawn
   /// behind the initials in both light and dark mode, so the monogram stays
   /// legible whichever theme is active.

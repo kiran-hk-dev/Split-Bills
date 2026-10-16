@@ -541,9 +541,9 @@ class _SideNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final List<Color> brand = AppGradientsTheme.of(context).brand;
-    // The selected rail item is filled with the brand gradient, so its
-    // foreground has to be white. onPrimaryContainer would be dark indigo,
-    // which is the right pairing for a pale primaryContainer pill but
+// The selected rail item is filled with the brand gradient, so its
+    // foreground has to be white. onPrimaryContainer would be dark ember
+    // brown, which is the right pairing for a pale primaryContainer pill but
     // unreadable on the gradient itself.
     const Color activeFg = Colors.white;
     final Color inactiveFg = theme.textTheme.bodySmall?.color ??

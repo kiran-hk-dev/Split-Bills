@@ -664,7 +664,7 @@ class _MapView extends StatelessWidget {
                       message: item.title,
                       child: const Icon(
                         Icons.place,
-                        color: AppColors.teal,
+                        color: AppColors.amber,
                         size: 30,
                       ),
                     ),

@@ -202,10 +202,19 @@ class _TripDetailBody extends ConsumerWidget {
                           ),
                           if (trip.myRole.isOwner)
                             const PopupMenuItem(
+                              value: 'cover-styles',
+                              child: ListTile(
+                                leading: Icon(Icons.wallpaper_outlined),
+                                title: Text('Cover styles'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          if (trip.myRole.isOwner)
+                            const PopupMenuItem(
                               value: 'cover',
                               child: ListTile(
                                 leading: Icon(Icons.photo_library_outlined),
-                                title: Text('Change cover photo'),
+                                title: Text('Upload cover photo'),
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
@@ -216,7 +225,7 @@ class _TripDetailBody extends ConsumerWidget {
                               value: 'cover-remove',
                               child: ListTile(
                                 leading: Icon(Icons.hide_image_outlined),
-                                title: Text('Remove cover photo'),
+                                title: Text('Remove cover'),
                                 contentPadding: EdgeInsets.zero,
                               ),
                             ),
@@ -464,6 +473,8 @@ class _TripDetailBody extends ConsumerWidget {
         }
       case 'cover':
         await _changeCover(context, ref);
+      case 'cover-styles':
+        await _pickCoverStyle(context, ref);
       case 'cover-remove':
         try {
           await repo.removeTripCover(trip.id);
@@ -516,7 +527,40 @@ class _TripDetailBody extends ConsumerWidget {
     }
   }
 
-  /// Picks a photo and stores it as the trip cover.
+  /// Picks one of the bundled cover illustrations.
+///
+/// This is the route that actually works today. Uploading needs a storage
+/// bucket and migration 20260101000011, which has not been applied, so before
+/// this a trip's cover could only ever be painted artwork.
+Future<void> _pickCoverStyle(BuildContext context, WidgetRef ref) async {
+  final String? current = TripCovers.bundledPathOf(trip.coverImageUrl);
+
+  final String? chosen = await showAppSheet<String>(
+    context: context,
+    builder: (BuildContext sheetContext) => _CoverStyleSheet(current: current),
+  );
+  if (chosen == null || !context.mounted) return;
+
+  try {
+    await ref
+        .read(tripRepositoryProvider)
+        .updateTrip(trip.id, <String, dynamic>{
+      'cover_image_url': TripCovers.urlFor(chosen),
+    });
+    ref.invalidate(tripsProvider);
+    ref.invalidate(currentTripProvider);
+    if (context.mounted) showFeedback(context, 'Cover updated.');
+  } catch (err) {
+    if (context.mounted) {
+      showFeedback(
+        context,
+        err is RepositoryException ? err.message : 'Could not set the cover.',
+        isError: true,
+      );
+    }
+  }
+}
+
   ///
   /// Until this existed `cover_image_url` could never be populated, so every
   /// trip fell back to painted artwork and there was no way to put a real
@@ -576,7 +620,7 @@ class _TripDetailBody extends ConsumerWidget {
     }
   }
 
-static String _mimeForCover(String filename) {
+  static String _mimeForCover(String filename) {
     final String lower = filename.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';
     if (lower.endsWith('.webp')) return 'image/webp';
@@ -585,6 +629,153 @@ static String _mimeForCover(String filename) {
 }
 
 
+class _CoverStyleSheet extends StatelessWidget {
+  const _CoverStyleSheet({this.current});
+
+  /// The bundled cover already in use, if any, so it can be marked.
+  final String? current;
+
+  @override
+  Widget build(BuildContext context) {
+    final TextTheme text = Theme.of(context).textTheme;
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.xl,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text('Cover style', style: text.titleMedium),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Bundled artwork, so it loads instantly and works offline. '
+              'You can still upload a photo of your own.',
+              style: text.bodySmall,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                // Two columns at every width: a cover is a 16:9-ish shape, so
+                // a single column on a tablet would waste the sheet.
+                const double gap = AppSpacing.md;
+                final double tile =
+                    (constraints.maxWidth - gap) / 2;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: <Widget>[
+                    for (final ({String path, String label}) o
+                        in TripCovers.options)
+                      SizedBox(
+                        width: tile,
+                        child: _CoverTile(
+                          path: o.path,
+                          label: o.label,
+                          selected: o.path == current,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoverTile extends StatelessWidget {
+  const _CoverTile({
+    required this.path,
+    required this.label,
+    required this.selected,
+  });
+
+  final String path;
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label cover',
+      child: InkWell(
+        onTap: () => Navigator.of(context).pop(path),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Image.asset(path, fit: BoxFit.cover),
+                    if (selected)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          border: Border.all(
+                            color: scheme.primary,
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                    if (selected)
+                      Align(
+                        alignment: Alignment.topRight,
+                        child: Padding(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: scheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.check,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? scheme.primary : scheme.onSurface,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.trip, required this.members});
 
@@ -873,7 +1064,7 @@ class _MembersPageState extends ConsumerState<MembersPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   const InlineBanner(
-                    message: 'Roles are enforced on the server. Hiding a button here does not grant or remove access — the database decides.',
+                    message: 'Roles are enforced on the server. Hiding a button here does not grant or remove access â€” the database decides.',
                     tone: StatusTone.info,
                     icon: Icons.lock_outline,
                   ),

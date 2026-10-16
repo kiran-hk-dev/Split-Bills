@@ -5,6 +5,50 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import 'motion.dart';
 
+/// Marks a bundled cover inside [TripCover.imageUrl].
+///
+/// Uploading a real photo needs a storage bucket and a migration that has not
+/// been applied, which left every trip with painted artwork and no way to
+/// choose anything. A bundled cover is just a string in the column that
+/// already exists, so it works today and needs no schema change. The two forms
+/// coexist: whichever the field holds, the cover renders it.
+const String assetCoverPrefix = 'asset:';
+
+/// The cover illustrations bundled with the app.
+class TripCovers {
+  const TripCovers._();
+
+  /// Asset path and display name, in the order they are offered.
+  static const List<({String path, String label})> options =
+      <({String path, String label})>[
+    (path: 'assets/covers/cover_dawn.jpg', label: 'Dawn'),
+    (path: 'assets/covers/cover_dusk.jpg', label: 'Dusk'),
+    (path: 'assets/covers/cover_desert.jpg', label: 'Desert'),
+    (path: 'assets/covers/cover_coast.jpg', label: 'Coast'),
+    (path: 'assets/covers/cover_forest.jpg', label: 'Forest'),
+    (path: 'assets/covers/cover_rose.jpg', label: 'Rose'),
+  ];
+
+  /// The value to store in `cover_image_url` for a bundled cover.
+  static String urlFor(String assetPath) => '$assetCoverPrefix$assetPath';
+
+  /// The asset path behind a stored cover value, or null if it is a photo URL.
+  static String? bundledPathOf(String? coverImageUrl) {
+    if (coverImageUrl == null ||
+        !coverImageUrl.startsWith(assetCoverPrefix)) {
+      return null;
+    }
+    return coverImageUrl.substring(assetCoverPrefix.length);
+  }
+
+  static String labelForPath(String assetPath) {
+    for (final ({String path, String label}) o in options) {
+      if (o.path == assetPath) return o.label;
+    }
+    return 'Cover';
+  }
+}
+
 /// Cover artwork for a trip.
 ///
 /// This is the fallback surface, shown when a trip has no
@@ -177,7 +221,22 @@ class TripCover extends StatelessWidget {
             // CrossfadeImage renders nothing if the URL fails, so the painted
             // artwork underneath simply stays rather than being replaced by an
             // error frame.
-            Positioned.fill(child: CrossfadeImage(url: imageUrl!)),
+            //
+            // A bundled cover is stored with an "asset:" prefix rather than a
+            // URL. That keeps the choice in the same column as an uploaded
+            // photo, so one field covers both and neither needs a migration.
+            Positioned.fill(
+              child: imageUrl!.startsWith(assetCoverPrefix)
+                  ? Image.asset(
+                      imageUrl!.substring(assetCoverPrefix.length),
+                      fit: BoxFit.cover,
+                      // Bundled, so a miss is a packaging bug rather than a
+                      // network problem; falling back keeps the cover usable.
+                      errorBuilder: (BuildContext _, Object _, StackTrace? _) =>
+                          const SizedBox.shrink(),
+                    )
+                  : CrossfadeImage(url: imageUrl!),
+            ),
 
           // Ghosted destination mark, scaled to the cover.
           //

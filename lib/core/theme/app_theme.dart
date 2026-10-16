@@ -44,7 +44,7 @@ class AppColors {
   static const Color primaryDeep = Color(0xFF9A3412);
 
   /// Tinted ember for selected chips, soft fills and card accents.
-  static const Color primarySoft = Color(0xFFFDEBE0);
+  static const Color primarySoft = Color(0xFFFDF2EB);
 
   /// Mid-ramp orange. The gradient's middle stop.
   static const Color orange = Color(0xFFEA580C);
@@ -58,9 +58,21 @@ class AppColors {
   // No longer the primary identity but still referenced by the money, country
   // and emergency reference data for categorical colouring.
 
-  /// Deep amber. 4.85:1 on white, so it is safe behind white text.
-  static const Color teal = Color(0xFFB45309);
-  static const Color teal600 = Color(0xFFD97706);
+  /// Deep amber.
+  ///
+  /// Named `teal` for years after the palette changed, and the name outlived
+  /// the colour: #B45309 is amber, and anyone reaching for `AppColors.teal`
+  /// expecting teal got orange. Renamed to match the value. The old names
+  /// remain as aliases so nothing downstream breaks.
+  static const Color amber = Color(0xFFB45309);
+  static const Color amber600 = Color(0xFFD97706);
+
+  /// @deprecated Misnomer: this is amber, not teal. Use [amber].
+  static const Color teal = amber;
+
+  /// @deprecated Misnomer: this is amber, not teal. Use [amber600].
+  static const Color teal600 = amber600;
+
   static const Color emerald = Color(0xFF16A34A);
   static const Color mint = Color(0xFFDCFCE7);
 
@@ -227,34 +239,36 @@ class AppRadius {
 
 /// Elevation.
 ///
-/// Shadows are tinted with the brand indigo rather than neutral black. A
-/// neutral-black shadow over a cool canvas reads as grey dirt; an indigo one
-/// reads as the card lifting toward the brand light.
+/// Shadows are tinted with the warm brand brown rather than neutral black. A
+/// neutral-black shadow over a warm parchment canvas reads as grey dirt, and
+/// the ones that were here before were worse: tinted with the previous
+/// indigo palette (#15142E, #4F46E5), which put cold blue and violet shadows
+/// under warm parchment and was most of why the grading read as off.
 class AppShadow {
   const AppShadow._();
 
   static const List<BoxShadow> none = <BoxShadow>[];
 
   static const List<BoxShadow> sm = <BoxShadow>[
-    BoxShadow(color: Color(0x0F15142E), blurRadius: 10, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x0F241A12), blurRadius: 10, offset: Offset(0, 2)),
   ];
 
   static const List<BoxShadow> md = <BoxShadow>[
-    BoxShadow(color: Color(0x1415142E), blurRadius: 22, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x14241A12), blurRadius: 22, offset: Offset(0, 8)),
   ];
 
   static const List<BoxShadow> lg = <BoxShadow>[
-    BoxShadow(color: Color(0x1F15142E), blurRadius: 40, offset: Offset(0, 18)),
+    BoxShadow(color: Color(0x1F241A12), blurRadius: 40, offset: Offset(0, 18)),
   ];
 
   /// Hover/focus lift for cards and list tiles on pointer devices.
   static const List<BoxShadow> raised = <BoxShadow>[
-    BoxShadow(color: Color(0x1A4F46E5), blurRadius: 28, offset: Offset(0, 12)),
+    BoxShadow(color: Color(0x1AC2410C), blurRadius: 28, offset: Offset(0, 12)),
   ];
 
   /// Soft brand halo, used behind hero elements and the active nav item.
   static const List<BoxShadow> glow = <BoxShadow>[
-    BoxShadow(color: Color(0x4D4F46E5), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x4DC2410C), blurRadius: 24, offset: Offset(0, 8)),
   ];
 }
 
@@ -375,8 +389,8 @@ class AppTheme {
   static ThemeData _build(Brightness brightness) {
     final bool isDark = brightness == Brightness.dark;
 
-    // In dark mode the primary is a light indigo with dark ink on top, rather
-    // than the deep indigo with white text. A saturated #4F46E5 fill on a near
+    // In dark mode the primary is a light ember with dark ink on top, rather
+    // than the deep ember with white text. A saturated #C2410C fill on a near
     // In dark mode the primary is a light ember with dark ink on top, rather
     // than the deep ember with white text. A saturated #C2410C fill on a warm
     // near-black canvas vibrates, and white-on-ember only clears 4.5:1.
@@ -388,7 +402,7 @@ class AppTheme {
         : Colors.white;
     final Color secondaryFill = isDark
         ? const Color(0xFFFCD34D)
-        : AppColors.teal;
+        : AppColors.amber;
     final Color onSecondary = isDark
         ? const Color(0xFF2B1A03)
         : Colors.white;
@@ -432,7 +446,10 @@ class AppTheme {
           surface: isDark ? AppColors.darkSurface : AppColors.surface,
           onSurface: isDark ? AppColors.darkInk : AppColors.ink,
           surfaceContainerLowest: isDark
-              ? const Color(0xFF08080F)
+              // Warm near-black. This was #08080F, which is blue-dominant and
+              // left over from the indigo palette; against a warm dark canvas
+              // it read as a cold patch.
+              ? const Color(0xFF0A0908)
               : AppColors.surface,
           surfaceContainerLow: isDark
               ? AppColors.darkSurface
@@ -781,7 +798,7 @@ class AppTheme {
 class AppGradientsTheme extends ThemeExtension<AppGradientsTheme> {
   const AppGradientsTheme({required this.brand, required this.shadowTint});
 
-  /// Indigo -> violet -> teal, lifted for dark mode.
+  /// Ember -> orange -> rose, lifted for dark mode.
   final List<Color> brand;
 
   /// What shadows are tinted with. Ink in light, dark ink in dark, so a shadow
