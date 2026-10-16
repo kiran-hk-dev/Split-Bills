@@ -339,20 +339,26 @@ class _CurrencyField extends StatelessWidget {
     final ThemeData theme = Theme.of(context);
     final Currency currency = Currencies.get(code);
 
-    return InkWell(
-      onTap: onPickCurrency,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixText: '${currency.flagEmoji ?? ''} ',
-          suffixIcon: const Icon(Icons.expand_more),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.lg,
+    return ConstrainedBox(
+      // The read-only currency field laid out 32dp tall, under the 48dp
+      // minimum, so the tappable box was well short of a comfortable target.
+      constraints: const BoxConstraints(
+        minHeight: AppHitTarget.minimum,
+      ),
+      child: InkWell(
+        onTap: onPickCurrency,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            prefixText: '${currency.flagEmoji ?? ''} ',
+            suffixIcon: const Icon(Icons.expand_more),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.lg,
+            ),
           ),
-        ),
-        child: Row(
+          child: Row(
           children: <Widget>[
             if (amount != null)
               Expanded(
@@ -367,6 +373,12 @@ class _CurrencyField extends StatelessWidget {
                     border: InputBorder.none,
                     filled: false,
                     contentPadding: EdgeInsets.zero,
+                    // isDense lays the field out 32dp tall, which is the
+                    // tappable area for the amount. The floor keeps it at the
+                    // 48dp minimum without changing the surrounding look.
+                    constraints: BoxConstraints(
+                      minHeight: AppHitTarget.minimum,
+                    ),
                   ),
                   onTap: () {},
                 ),
@@ -390,6 +402,7 @@ class _CurrencyField extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

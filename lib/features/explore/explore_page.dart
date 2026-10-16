@@ -129,7 +129,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
             ),
             const SizedBox(height: AppSpacing.md),
             SizedBox(
-              height: 40,
+              // Was a hardcoded 40, which capped every filter chip below the
+              // 48dp minimum. Chips are the primary control on this screen, so
+              // the row is sized to the minimum rather than to its content.
+              height: AppHitTarget.minimum,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: kDestinationCategories.length + 1,
@@ -140,6 +143,13 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                       selected: _category == null,
                       onSelected: (_) => setState(() => _category = null),
                       label: const Text('All'),
+                      // The shared chip theme pads these to 40dp, under the
+                      // 48dp minimum. Padding is set here rather than relying
+                      // on a surrounding constraint.
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: 14,
+                      ),
                     );
                   }
                   final String cat = kDestinationCategories[i - 1];
@@ -149,6 +159,10 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
                       () => _category = _category == cat ? null : cat,
                     ),
                     label: Text(cat),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: 14,
+                    ),
                   );
                 },
               ),
