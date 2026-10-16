@@ -126,9 +126,29 @@ void main() {
     });
 
     test('every declared cover is under a folder declared in pubspec', () {
+      // The bug this guards: `assets:` sat at column zero instead of nested
+      // under `flutter:`, so it parsed as an unknown top-level key and Flutter
+      // ignored the whole block. Every asset listed below it was silently
+      // dropped from every web build - the brand logo and the onboarding
+      // artwork included - while `flutter build` still reported success.
+      final List<String> lines = File('pubspec.yaml').readAsLinesSync();
+      int? assetsLine;
+      for (int i = 0; i < lines.length; i++) {
+        if (lines[i].trim() == 'assets:') {
+          assetsLine = i;
+          break;
+        }
+      }
+      expect(assetsLine, isNotNull, reason: 'no assets: key in pubspec');
+      expect(
+        lines[assetsLine!].startsWith(' '),
+        isTrue,
+        reason: 'assets: is not indented, so it is a top-level key and Flutter '
+            'ignores it along with every folder listed under it',
+      );
+
       final String pubspec = File('pubspec.yaml').readAsStringSync();
       for (final ({String path, String label}) o in TripCovers.options) {
-        // 'assets/covers/cover_dawn.jpg' -> 'assets/covers/'
         final String folder = o.path.substring(0, o.path.lastIndexOf('/') + 1);
         expect(
           pubspec.contains('- $folder'),
