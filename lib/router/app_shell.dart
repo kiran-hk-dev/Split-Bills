@@ -540,7 +540,7 @@ class _SideNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final List<Color> brand = AppGradientsTheme.of(context).brand;
+    final Color brand = AppGradientsTheme.of(context).brand;
 // The selected rail item is filled with the brand gradient, so its
     // foreground has to be white. onPrimaryContainer would be dark ember
     // brown, which is the right pairing for a pale primaryContainer pill but
@@ -580,11 +580,8 @@ class _SideNavItem extends StatelessWidget {
             padding: EdgeInsets.symmetric(
               horizontal: extended ? AppSpacing.md : 0,
             ),
-            decoration: BoxDecoration(
-              gradient: selected
-                  ? AppGradients.linear(colors: brand, end: Alignment.centerLeft)
-                  : null,
-              color: selected ? null : Colors.transparent,
+decoration: BoxDecoration(
+              color: selected ? brand : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(

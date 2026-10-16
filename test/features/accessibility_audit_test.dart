@@ -72,8 +72,8 @@ Future<SemanticsHandle> pumpAt(WidgetTester tester, Widget page) async {
     return handle;
   }
 
-  tabs.forEach((String name, Widget Function() build) {
-    group('$name', () {
+tabs.forEach((String name, Widget Function() build) {
+  group(name, () {
 testWidgets('every icon button is announced', (WidgetTester tester) async {
         final SemanticsHandle h = await pumpAt(tester, build());
 

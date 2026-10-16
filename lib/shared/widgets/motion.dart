@@ -463,7 +463,7 @@ class GradientBorderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final List<Color> ring = colors ?? AppGradientsTheme.of(context).brand;
+    final List<Color> ring = colors ?? <Color>[AppGradientsTheme.of(context).brand];
     final BorderRadius radius = BorderRadius.circular(borderRadius);
 
     final Widget content = Padding(padding: padding, child: child);
@@ -523,9 +523,7 @@ class BrandMark extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: AppGradients.linear(
-          colors: AppGradientsTheme.of(context).brand,
-        ),
+        color: AppGradientsTheme.of(context).brand,
         borderRadius: BorderRadius.circular(size * 0.3),
         boxShadow: <BoxShadow>[
           BoxShadow(
@@ -544,8 +542,8 @@ class BrandMark extends StatelessWidget {
   }
 
   static Color ringShadowOf(BuildContext context, double size) {
-    final List<Color> brand = AppGradientsTheme.of(context).brand;
-    return brand.first.withValues(alpha: size > 40 ? 0.32 : 0.40);
+    final Color brand = AppGradientsTheme.of(context).brand;
+    return brand.withValues(alpha: size > 40 ? 0.32 : 0.40);
   }
 }
 
@@ -725,7 +723,7 @@ class NetworkArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<Color> brand = AppGradientsTheme.of(context).brand;
+    final Color brand = AppGradientsTheme.of(context).brand;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -761,12 +759,9 @@ class NetworkArtwork extends StatelessWidget {
             errorBuilder:
                 (BuildContext context, Object error, StackTrace? _) =>
                     DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: AppGradients.linear(
-                          colors: brand,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
+decoration: BoxDecoration(
+        color: brand,
+      ),
                       child: Center(
                         child: Icon(
                           fallbackIcon,

@@ -306,9 +306,7 @@ class EmptyState extends StatelessWidget {
                 width: compact ? 56 : 76,
                 height: compact ? 56 : 76,
                 decoration: BoxDecoration(
-                  gradient: AppGradients.linear(
-                    colors: AppGradientsTheme.of(context).brand,
-                  ),
+                  color: AppGradientsTheme.of(context).brand,
                   shape: BoxShape.circle,
                   boxShadow: <BoxShadow>[
                     BoxShadow(

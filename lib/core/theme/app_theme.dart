@@ -172,34 +172,32 @@ class AppColors {
 /// The sweep runs ember -> orange -> rose. Those are neighbours on the warm
 /// half of the wheel, so the gradient reads as one light travelling rather
 /// than three competing colours.
+/// The brand is one flat colour, not a ramp.
+///
+/// It used to be a three-stop sweep (sky -> brighter sky -> cyan), applied to
+/// the selected rail item, the auth mark, the NetworkArtwork placeholder and
+/// the brand badge. Nothing about those surfaces needed a second colour; the
+/// ramp was there because it looked considered, and it made each of them read
+/// as a different object from the buttons around it. A single colour is
+/// unambiguous and is what the rest of the app already uses.
+///
+/// Gradients remain where they do a job: the painted cover artwork, the
+/// legibility scrim over it, and the skeleton shimmer. Those carry
+/// information. This one carried a mood.
 class AppGradients {
   const AppGradients._();
 
-  static const List<Color> brand = <Color>[
-    Color(0xFF0369A1),
-    Color(0xFF0284C7),
-    Color(0xFF0E7490),
-  ];
+  /// The brand colour. Same value as [AppColors.primary] in light mode.
+  static const Color brand = Color(0xFF0369A1);
 
-  /// Two-stop version for large fills where the three-stop sweep would read
-  /// as a stripe rather than a gradient.
-  static const List<Color> brandShort = <Color>[
-    Color(0xFF0369A1),
-    Color(0xFF0284C7),
-  ];
-
-  /// Same hue family, lifted for dark mode so it does not glow harshly.
-  static const List<Color> brandDark = <Color>[
-    Color(0xFF38BDF8),
-    Color(0xFFFDBA74),
-    Color(0xFFFB7185),
-  ];
+  /// Lifted for dark mode so it does not glow harshly against the dark canvas.
+  static const Color brandDark = Color(0xFF38BDF8);
 
   static LinearGradient linear({
     List<Color>? colors,
     Alignment begin = Alignment.topLeft,
     Alignment end = Alignment.bottomRight,
-  }) => LinearGradient(begin: begin, end: end, colors: colors ?? brand);
+  }) => LinearGradient(begin: begin, end: end, colors: colors ?? <Color>[brand]);
 
   static LinearGradient vertical(List<Color> colors) =>
       LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: colors);
@@ -478,7 +476,7 @@ class AppTheme {
     final Color canvas = isDark ? AppColors.darkCanvas : AppColors.canvas;
     final Color ink = isDark ? AppColors.darkInk : AppColors.ink;
     final Color inkMuted = isDark ? AppColors.darkInkMuted : AppColors.inkMuted;
-    final List<Color> brandGradient =
+    final Color brandGradient =
         isDark ? AppGradients.brandDark : AppGradients.brand;
 
     final TextTheme base = isDark
@@ -798,7 +796,7 @@ class AppGradientsTheme extends ThemeExtension<AppGradientsTheme> {
   const AppGradientsTheme({required this.brand, required this.shadowTint});
 
   /// Deep sky -> sky -> cyan, lifted for dark mode.
-  final List<Color> brand;
+  final Color brand;
 
   /// What shadows are tinted with. Ink in light, dark ink in dark, so a shadow
   /// never lightens a dark surface.
@@ -812,7 +810,7 @@ class AppGradientsTheme extends ThemeExtension<AppGradientsTheme> {
   }
 
   @override
-  AppGradientsTheme copyWith({List<Color>? brand, Color? shadowTint}) =>
+  AppGradientsTheme copyWith({Color? brand, Color? shadowTint}) =>
       AppGradientsTheme(
         brand: brand ?? this.brand,
         shadowTint: shadowTint ?? this.shadowTint,
@@ -822,10 +820,7 @@ class AppGradientsTheme extends ThemeExtension<AppGradientsTheme> {
   AppGradientsTheme lerp(ThemeExtension<AppGradientsTheme>? other, double t) {
     if (other is! AppGradientsTheme) return this;
     return AppGradientsTheme(
-      brand: <Color>[
-        for (int i = 0; i < brand.length; i++)
-          Color.lerp(brand[i], other.brand[i], t) ?? brand[i],
-      ],
+      brand: Color.lerp(brand, other.brand, t) ?? brand,
       shadowTint: Color.lerp(shadowTint, other.shadowTint, t) ?? shadowTint,
     );
   }

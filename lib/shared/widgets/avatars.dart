@@ -46,7 +46,11 @@ class MemberAvatar extends StatelessWidget {
     Color(0xFF0F766E), // teal
     Color(0xFF1D4ED8), // blue
     Color(0xFFA44808), // amber
-    Color(0xFF7C3AED), // violet
+    // Was #7C3AED violet. Removed: it was the only purple left in the app and
+    // sat oddly against a blue brand. Green takes its place because it is the
+    // one hue none of the other four came near, so distinctness - the entire
+    // job of this list - is preserved.
+    Color(0xFF15803D), // green
     Color(0xFF0E7490), // cyan
     Color(0xFFBE185D), // pink
   ];

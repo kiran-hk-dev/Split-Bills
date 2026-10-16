@@ -875,9 +875,7 @@ class _SlideIconBadge extends StatelessWidget {
       width: 96,
       height: 96,
       decoration: BoxDecoration(
-        gradient: AppGradients.linear(
-          colors: AppGradientsTheme.of(context).brand,
-        ),
+        color: AppGradientsTheme.of(context).brand,
         shape: BoxShape.circle,
       ),
       child: Icon(icon, size: 42, color: Colors.white),
