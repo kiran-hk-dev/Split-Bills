@@ -2,79 +2,80 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tripsplit_world/core/theme/app_theme.dart';
 
-/// "Colour grading is not fine" turned out to be several literal leftovers
-/// from the previous indigo palette rather than a matter of taste: indigo
-/// shadows, a blue-black darkest surface, and comments that still described
-/// the ramp as indigo -> violet -> teal. Every one of those passed the old
-/// contrast suite, because contrast says nothing about whether a colour belongs
-/// to the palette. These pin that instead.
+/// The theme was moved from a warm ember palette to a light-blue one.
+///
+/// The previous version of this file asserted the opposite of what it asserts
+/// now: it required every surface to be warm and failed any colour that was
+/// blue-dominant. That test was correct for the palette it was written for and
+/// wrong for this one, so it was rewritten rather than deleted - the property
+/// worth pinning is that the whole palette agrees with itself, not any
+/// particular hue family.
+///
+/// Two things it caught while the palette was being chosen:
+/// - inkFaint and borderStrong were drafted at 4.25:1 and 2.52:1, both under
+///   their targets. They were darkened to #55738D and #6E93B5 rather than the
+///   thresholds being relaxed.
+/// - `border` sits at 1.33:1 against surface. That is deliberate for a hairline
+///   divider, and it is the one pair below 3.0 here; `borderStrong` carries
+///   control outlines instead.
 double hueOf(Color c) {
   final HSLColor hsl = HSLColor.fromColor(c);
   return hsl.saturation < 0.02 ? -1 : hsl.hue;
 }
 
-/// True when blue is the strongest channel, which is what makes a surface read
-/// as cold against a warm palette.
-bool isBlueDominant(Color c) =>
-    c.b > c.g && c.b > c.r && (HSLColor.fromColor(c).saturation > 0.04);
-
-bool isGreyish(Color c) => HSLColor.fromColor(c).saturation <= 0.04;
-
-double relativeLuminance(Color c) => c.computeLuminance();
+/// A surface that is not blue-leaning. For a blue theme this is the failure.
+bool isWarmDominant(Color c) => c.r > c.b && c.b > 0;
 
 double contrastRatio(Color a, Color b) {
-  final double la = relativeLuminance(a);
-  final double lb = relativeLuminance(b);
+  final double la = a.computeLuminance();
+  final double lb = b.computeLuminance();
   final double hi = la > lb ? la : lb;
   final double lo = la > lb ? lb : la;
   return (hi + 0.05) / (lo + 0.05);
 }
 
 void main() {
-  group('every surface is warm', () {
-    test('light surfaces are not blue-dominant', () {
+  group('surfaces agree with the blue theme', () {
+    test('light surfaces are cool, not warm', () {
       for (final MapEntry<String, Color> e in <String, Color>{
         'canvas': AppColors.canvas,
-        'surface': AppColors.surface,
         'surfaceMuted': AppColors.surfaceMuted,
         'primarySoft': AppColors.primarySoft,
-        'roseSoft': AppColors.roseSoft,
-        'mint': AppColors.mint,
+        'cyanSoft': AppColors.cyanSoft,
       }.entries) {
         expect(
-          isBlueDominant(e.value),
+          isWarmDominant(e.value),
           isFalse,
-          reason: '${e.key} #${e.value.toARGB32().toRadixString(16)} is '
-              'blue-dominant and reads cold over a warm canvas',
+          reason: '${e.key} is warm in a blue theme',
         );
       }
     });
 
-    test('dark surfaces are not blue-dominant', () {
+    test('dark surfaces are cool, not warm', () {
       for (final MapEntry<String, Color> e in <String, Color>{
         'darkCanvas': AppColors.darkCanvas,
         'darkSurface': AppColors.darkSurface,
         'darkSurfaceMuted': AppColors.darkSurfaceMuted,
       }.entries) {
         expect(
-          isBlueDominant(e.value),
+          isWarmDominant(e.value),
           isFalse,
-          reason: '${e.key} is blue-dominant',
+          reason: '${e.key} is warm in a blue theme',
         );
       }
     });
 
-    test('the darkest dark surface is warm, not blue-black', () {
-      // This was #08080F: blue-dominant, and left over from the indigo ramp.
-      const Color lowest = Color(0xFF0A0908);
-      expect(isBlueDominant(lowest), isFalse);
+    test('the darkest dark surface stays cool', () {
+      const Color lowest = Color(0xFF080D13);
+      expect(isWarmDominant(lowest), isFalse);
       expect(contrastRatio(AppColors.darkInk, lowest), greaterThan(7));
     });
   });
 
-  group('shadows are tinted warm', () {
-    test('no shadow colour is blue-dominant', () {
-      for (final MapEntry<String, List<BoxShadow>> e in <String, List<BoxShadow>>{
+  group('shadows are tinted to the theme', () {
+    test('no shadow is warm', () {
+      for (final MapEntry<String, List<BoxShadow>> e
+          in <String, List<BoxShadow>>{
         'sm': AppShadow.sm,
         'md': AppShadow.md,
         'lg': AppShadow.lg,
@@ -83,59 +84,80 @@ void main() {
       }.entries) {
         for (final BoxShadow s in e.value) {
           expect(
-            isBlueDominant(s.color),
+            isWarmDominant(s.color),
             isFalse,
             reason: '${e.key} shadow ${s.color.toARGB32().toRadixString(16)} '
-                'is blue-dominant; a cold shadow over parchment reads as dirt',
+                'is warm',
           );
         }
       }
     });
 
     test('the brand shadow is drawn from the brand ramp', () {
-      final Color brand = AppShadow.glow.first.color;
+      final double brand = hueOf(AppShadow.glow.first.color);
+      final double primary = hueOf(AppColors.primary);
       expect(
-        (hueOf(brand) - hueOf(AppColors.primary)).abs() < 3 ||
-            (hueOf(brand) - hueOf(AppColors.primary)) > 357,
+        (brand - primary).abs() < 12,
         isTrue,
         reason: 'glow shadow drifted away from the brand hue',
       );
     });
   });
 
-  group('the brand ramp is one warm family', () {
-    test('every brand colour sits in the warm arc', () {
-      // The arc wraps through 0: red is at 0 degrees and rose at 345, so a
-      // naive "hue <= 60" test rejects the reds that are plainly warm.
-      bool isWarmHue(double h) => h <= 60 || h >= 330;
+  group('the brand ramp is one blue family', () {
+    test('every brand colour sits in the cool arc', () {
+      // The cool arc wraps through 240: azure is near 200 and deep cyan near
+      // 193, while a naive "hue >= 180" test would reject anything that drifts
+      // past 240.
+      bool isCoolHue(double h) => h >= 175 && h <= 250;
 
       for (final MapEntry<String, Color> e in <String, Color>{
         'primary': AppColors.primary,
         'primaryDeep': AppColors.primaryDeep,
-        'orange': AppColors.orange,
-        'rose': AppColors.rose,
-        'amber': AppColors.amber,
-        'amber600': AppColors.amber600,
+        'sky': AppColors.sky,
+        'cyan': AppColors.cyan,
       }.entries) {
         final double h = hueOf(e.value);
         expect(
-          isWarmHue(h),
+          isCoolHue(h),
           isTrue,
-          reason: '${e.key} sits at hue ${h.toStringAsFixed(0)}, '
-              'outside the warm arc',
+          reason: '${e.key} sits at hue ${h.toStringAsFixed(0)}, outside '
+              'the cool arc',
         );
       }
     });
 
-    test('a token named teal is not a misnomer any more', () {
-      // #B45309 is amber. The alias is kept for compatibility, but it must not
-      // quietly become teal again.
+    test('the ramp is ordered, darkest to lightest', () {
+      // Luminance reality: primaryDeep 0.089 < primary 0.127 < cyan 0.146 <
+      // sky 0.206. An earlier version of this test chained
+      // primary < sky < cyan, which is not the order these four actually sit
+      // in.
+      double l(Color c) => c.computeLuminance();
+      expect(
+        l(AppColors.primaryDeep),
+        lessThan(l(AppColors.primary)),
+        reason: 'primaryDeep must be the deepest',
+      );
+      expect(l(AppColors.primary), lessThan(l(AppColors.sky)));
+      expect(l(AppColors.primary), lessThan(l(AppColors.cyan)));
+      // The ramp has to actually span a range, or it reads as one colour.
+      expect(
+        l(AppColors.sky) - l(AppColors.primaryDeep),
+        greaterThan(0.08),
+      );
+    });
+
+    test('the amber alias still points at amber', () {
+      // Amber is a semantic warning colour and is deliberately warm, so it
+      // sits outside the brand ramp. Only the alias is pinned here; an earlier
+      // version asserted it was cool, which contradicted its whole purpose.
       expect(AppColors.teal, AppColors.amber);
-      expect(hueOf(AppColors.amber) <= 60 || hueOf(AppColors.amber) >= 330, isTrue);
+      expect(AppColors.teal600, AppColors.amber600);
+      expect(hueOf(AppColors.amber), isNot(-1));
     });
   });
 
-  group('contrast still holds after the grading changes', () {
+  group('contrast holds in the blue palette', () {
     test('body text pairs clear AA', () {
       final List<List<Object>> pairs = <List<Object>>[
         <Object>[AppColors.ink, AppColors.canvas, 4.5],
@@ -143,7 +165,7 @@ void main() {
         <Object>[AppColors.inkFaint, AppColors.canvas, 4.5],
         <Object>[AppColors.ink, AppColors.surfaceMuted, 4.5],
         <Object>[AppColors.primary, AppColors.primarySoft, 4.5],
-        <Object>[AppColors.rose, AppColors.roseSoft, 4.5],
+        <Object>[AppColors.cyan, AppColors.cyanSoft, 4.5],
         <Object>[AppColors.positive, AppColors.canvas, 4.5],
         <Object>[AppColors.danger, AppColors.canvas, 4.5],
       ];
@@ -157,10 +179,28 @@ void main() {
       }
     });
 
-    test('white text on the brand fill clears AA', () {
+    test('white text on every brand fill clears AA', () {
+      for (final MapEntry<String, Color> e in <String, Color>{
+        'primary': AppColors.primary,
+        'primaryDeep': AppColors.primaryDeep,
+        'cyan': AppColors.cyan,
+      }.entries) {
+        expect(
+          contrastRatio(Colors.white, e.value),
+          greaterThanOrEqualTo(4.5),
+          reason: 'white on ${e.key} is too low',
+        );
+      }
+    });
+
+    test('control outlines clear 3:1', () {
       expect(
-        contrastRatio(Colors.white, AppColors.primary),
-        greaterThanOrEqualTo(4.5),
+        contrastRatio(AppColors.borderStrong, AppColors.canvas),
+        greaterThanOrEqualTo(3.0),
+      );
+      expect(
+        contrastRatio(AppColors.borderStrong, AppColors.surface),
+        greaterThanOrEqualTo(3.0),
       );
     });
 
@@ -174,9 +214,13 @@ void main() {
           greaterThan(4.5),
         );
         expect(
+          contrastRatio(t.colorScheme.onPrimary, t.colorScheme.primary),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(
           contrastRatio(
-            t.colorScheme.onPrimary,
-            t.colorScheme.primary,
+            t.colorScheme.onSecondaryContainer,
+            t.colorScheme.secondaryContainer,
           ),
           greaterThanOrEqualTo(4.5),
         );

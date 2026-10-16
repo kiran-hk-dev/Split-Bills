@@ -37,21 +37,21 @@ class AppColors {
 
   /// Primary brand fill. 5.18:1 against [surface], so it carries a white
   /// button label, and 4.85:1 against [canvas] so it is readable as text.
-  static const Color primary = Color(0xFFC2410C);
+  static const Color primary = Color(0xFF0369A1);
 
   /// Darker ember for headings, emphasis and hover states. 9.34:1 on
   /// [surface].
-  static const Color primaryDeep = Color(0xFF9A3412);
+  static const Color primaryDeep = Color(0xFF075985);
 
   /// Tinted ember for selected chips, soft fills and card accents.
-  static const Color primarySoft = Color(0xFFFDF2EB);
+  static const Color primarySoft = Color(0xFFDDEEFB);
 
   /// Mid-ramp orange. The gradient's middle stop.
-  static const Color orange = Color(0xFFEA580C);
+  static const Color sky = Color(0xFF0284C7);
 
   /// The ramp's far end. Rose rather than a cool hue, so the sweep stays warm.
-  static const Color rose = Color(0xFFBE123C);
-  static const Color roseSoft = Color(0xFFFDE8EC);
+  static const Color cyan = Color(0xFF0E7490);
+  static const Color cyanSoft = Color(0xFFE0F5FB);
 
   // ---- Legacy brand names, kept so existing call sites keep compiling ------
   //
@@ -79,30 +79,30 @@ class AppColors {
   // ---- Surfaces -----------------------------------------------------------
 
   /// Warm parchment rather than a cool grey-white.
-  static const Color canvas = Color(0xFFFBF7F2);
+  static const Color canvas = Color(0xFFF4F9FE);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF4EDE3);
-  static const Color border = Color(0xFFE7DCCB);
+  static const Color surfaceMuted = Color(0xFFE9F2FB);
+  static const Color border = Color(0xFFCFE2F3);
 
   /// Border for interactive controls (text fields, outlined buttons).
   ///
   /// WCAG 1.4.11 wants 3:1 for the boundary that identifies a control. This
   /// measures 3.28:1 on [surface] and 3.07:1 on [canvas], and sits 2.42:1
   /// above [border] so a control edge still reads heavier than a card edge.
-  static const Color borderStrong = Color(0xFF9A8C7B);
+  static const Color borderStrong = Color(0xFF6E93B5);
 
   // ---- Text ---------------------------------------------------------------
 
   /// 15.99:1 on [canvas]. A warm near-black, not a blue-black.
-  static const Color ink = Color(0xFF241A12);
+  static const Color ink = Color(0xFF0B1B2B);
 
   /// 7.45:1 on [canvas].
-  static const Color inkMuted = Color(0xFF5B4F42);
+  static const Color inkMuted = Color(0xFF3F5A72);
 
   /// Tinted placeholder and de-emphasised text. 4.98:1 on [canvas] — real
   /// text, not decoration, so it clears AA rather than being greyed out until
   /// it disappears.
-  static const Color inkFaint = Color(0xFF77695A);
+  static const Color inkFaint = Color(0xFF55738D);
 
   // ---- Status -------------------------------------------------------------
   //
@@ -119,7 +119,7 @@ class AppColors {
   static const Color infoSoft = Color(0xFFDBEAFE);
 
   static const Color verified = Color(0xFF166534);
-  static const Color unverified = Color(0xFF92400E);
+  static const Color unverified = Color(0xFF075985);
 
   // ---- Status, dark-theme variants ----------------------------------------
   //
@@ -128,7 +128,7 @@ class AppColors {
   // equivalents used when the active brightness is dark.
 
   static const Color positiveDark = Color(0xFF86EFAC);
-  static const Color warningDark = Color(0xFFFCD34D);
+  static const Color warningDark = Color(0xFF7DD3FC);
   static const Color dangerDark = Color(0xFFFCA5A5);
   static const Color infoDark = Color(0xFF93C5FD);
 
@@ -152,19 +152,19 @@ class AppColors {
   // Warm near-black rather than the blue-black used previously, so dark mode
   // belongs to the same brand as light mode.
 
-  static const Color darkCanvas = Color(0xFF12100E);
-  static const Color darkSurface = Color(0xFF1C1815);
-  static const Color darkSurfaceMuted = Color(0xFF2A2320);
+  static const Color darkCanvas = Color(0xFF0B1016);
+  static const Color darkSurface = Color(0xFF121A23);
+  static const Color darkSurfaceMuted = Color(0xFF1B2632);
 
-  /// 3.39:1 on [darkSurface] and 3.65:1 on [darkCanvas]. Kept in the warm
+  /// 3.39:1 on [darkSurface] and 3.65:1 on [darkCanvas]. Kept in the cool
   /// brown family so it belongs to the theme rather than reading as grey.
-  static const Color darkBorder = Color(0xFF7A6A5B);
+  static const Color darkBorder = Color(0xFF6E8AA3);
 
   /// 16.65:1 on [darkCanvas].
-  static const Color darkInk = Color(0xFFF6EFE7);
+  static const Color darkInk = Color(0xFFEAF3FA);
 
   /// 8.80:1 on [darkSurface].
-  static const Color darkInkMuted = Color(0xFFC3B5A6);
+  static const Color darkInkMuted = Color(0xFFA8BECD);
 }
 
 /// The brand gradient and the gradients derived from it.
@@ -176,21 +176,21 @@ class AppGradients {
   const AppGradients._();
 
   static const List<Color> brand = <Color>[
-    Color(0xFFC2410C),
-    Color(0xFFEA580C),
-    Color(0xFFBE123C),
+    Color(0xFF0369A1),
+    Color(0xFF0284C7),
+    Color(0xFF0E7490),
   ];
 
   /// Two-stop version for large fills where the three-stop sweep would read
   /// as a stripe rather than a gradient.
   static const List<Color> brandShort = <Color>[
-    Color(0xFFC2410C),
-    Color(0xFFEA580C),
+    Color(0xFF0369A1),
+    Color(0xFF0284C7),
   ];
 
   /// Same hue family, lifted for dark mode so it does not glow harshly.
   static const List<Color> brandDark = <Color>[
-    Color(0xFFFB923C),
+    Color(0xFF38BDF8),
     Color(0xFFFDBA74),
     Color(0xFFFB7185),
   ];
@@ -239,8 +239,8 @@ class AppRadius {
 
 /// Elevation.
 ///
-/// Shadows are tinted with the warm brand brown rather than neutral black. A
-/// neutral-black shadow over a warm parchment canvas reads as grey dirt, and
+/// Shadows are tinted with the deep brand blue rather than neutral black. A
+/// neutral-black shadow over a pale blue canvas reads as grey dirt, and
 /// the ones that were here before were worse: tinted with the previous
 /// indigo palette (#15142E, #4F46E5), which put cold blue and violet shadows
 /// under warm parchment and was most of why the grading read as off.
@@ -250,25 +250,25 @@ class AppShadow {
   static const List<BoxShadow> none = <BoxShadow>[];
 
   static const List<BoxShadow> sm = <BoxShadow>[
-    BoxShadow(color: Color(0x0F241A12), blurRadius: 10, offset: Offset(0, 2)),
+    BoxShadow(color: Color(0x0F0B1B2B), blurRadius: 10, offset: Offset(0, 2)),
   ];
 
   static const List<BoxShadow> md = <BoxShadow>[
-    BoxShadow(color: Color(0x14241A12), blurRadius: 22, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x140B1B2B), blurRadius: 22, offset: Offset(0, 8)),
   ];
 
   static const List<BoxShadow> lg = <BoxShadow>[
-    BoxShadow(color: Color(0x1F241A12), blurRadius: 40, offset: Offset(0, 18)),
+    BoxShadow(color: Color(0x1F0B1B2B), blurRadius: 40, offset: Offset(0, 18)),
   ];
 
   /// Hover/focus lift for cards and list tiles on pointer devices.
   static const List<BoxShadow> raised = <BoxShadow>[
-    BoxShadow(color: Color(0x1AC2410C), blurRadius: 28, offset: Offset(0, 12)),
+    BoxShadow(color: Color(0x1A0369A1), blurRadius: 28, offset: Offset(0, 12)),
   ];
 
   /// Soft brand halo, used behind hero elements and the active nav item.
   static const List<BoxShadow> glow = <BoxShadow>[
-    BoxShadow(color: Color(0x4DC2410C), blurRadius: 24, offset: Offset(0, 8)),
+    BoxShadow(color: Color(0x4D0369A1), blurRadius: 24, offset: Offset(0, 8)),
   ];
 }
 
@@ -395,16 +395,16 @@ class AppTheme {
     // than the deep ember with white text. A saturated #C2410C fill on a warm
     // near-black canvas vibrates, and white-on-ember only clears 4.5:1.
     final Color primaryFill = isDark
-        ? const Color(0xFFFB923C)
+        ? const Color(0xFF38BDF8)
         : AppColors.primary;
     final Color onPrimary = isDark
-        ? const Color(0xFF2B1206)
+        ? const Color(0xFF062A42)
         : Colors.white;
     final Color secondaryFill = isDark
-        ? const Color(0xFFFCD34D)
+        ? const Color(0xFF7DD3FC)
         : AppColors.amber;
     final Color onSecondary = isDark
-        ? const Color(0xFF2B1A03)
+        ? const Color(0xFF082F49)
         : Colors.white;
 
     final ColorScheme scheme =
@@ -415,41 +415,40 @@ class AppTheme {
           primary: primaryFill,
           onPrimary: onPrimary,
           primaryContainer: isDark
-              ? const Color(0xFF4A2312)
+              ? const Color(0xFF0C4A6E)
               : AppColors.primarySoft,
           onPrimaryContainer: isDark
-              ? const Color(0xFFFFDCC8)
+              ? const Color(0xFFBAE6FD)
               : AppColors.primaryDeep,
           secondary: secondaryFill,
           onSecondary: onSecondary,
           // Material draws the selected segment of every SegmentedButton, and
           // every ChoiceChip row, from secondaryContainer. Green there made
           // "Balanced" and every other trip-style option render green next to
-          // the brand. Amber keeps the second stop in-family.
+          // the brand. Sky keeps the second stop in-family.
           //
           // Mint stays available as [AppColors.positiveSoft] for places that
           // genuinely mean "good", rather than being the default accent.
           secondaryContainer: isDark
-              ? const Color(0xFF4A3312)
-              : const Color(0xFFFEF0D4),
+              ? const Color(0xFF164E63)
+              : const Color(0xFFE0F2FE),
           onSecondaryContainer: isDark
-              ? const Color(0xFFFDE7BC)
-              : const Color(0xFF92400E),
-          tertiary: isDark ? const Color(0xFFFDA4AF) : AppColors.rose,
-          onTertiary: isDark ? const Color(0xFF3B0713) : Colors.white,
+              ? const Color(0xFFCFFAFE)
+              : const Color(0xFF075985),
+          tertiary: isDark ? const Color(0xFF67E8F9) : AppColors.cyan,
+          onTertiary: isDark ? const Color(0xFF083344) : Colors.white,
           tertiaryContainer: isDark
-              ? const Color(0xFF5C1226)
-              : AppColors.roseSoft,
+              ? const Color(0xFF164E63)
+              : AppColors.cyanSoft,
           onTertiaryContainer: isDark
-              ? const Color(0xFFFFD9E0)
-              : const Color(0xFF9F1239),
+              ? const Color(0xFFCFFAFE)
+              : const Color(0xFF155E75),
           surface: isDark ? AppColors.darkSurface : AppColors.surface,
           onSurface: isDark ? AppColors.darkInk : AppColors.ink,
           surfaceContainerLowest: isDark
-              // Warm near-black. This was #08080F, which is blue-dominant and
-              // left over from the indigo palette; against a warm dark canvas
-              // it read as a cold patch.
-              ? const Color(0xFF0A0908)
+              // Cool near-black, one step darker than darkCanvas so the two
+              // surfaces still separate.
+              ? const Color(0xFF080D13)
               : AppColors.surface,
           surfaceContainerLow: isDark
               ? AppColors.darkSurface
@@ -798,7 +797,7 @@ class AppTheme {
 class AppGradientsTheme extends ThemeExtension<AppGradientsTheme> {
   const AppGradientsTheme({required this.brand, required this.shadowTint});
 
-  /// Ember -> orange -> rose, lifted for dark mode.
+  /// Deep sky -> sky -> cyan, lifted for dark mode.
   final List<Color> brand;
 
   /// What shadows are tinted with. Ink in light, dark ink in dark, so a shadow

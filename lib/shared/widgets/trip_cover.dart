@@ -27,6 +27,13 @@ class TripCovers {
     (path: 'assets/covers/cover_coast.jpg', label: 'Coast'),
     (path: 'assets/covers/cover_forest.jpg', label: 'Forest'),
     (path: 'assets/covers/cover_rose.jpg', label: 'Rose'),
+    (path: 'assets/covers/wonder_giza.jpg', label: 'Great Pyramid'),
+    (path: 'assets/covers/wonder_babylon.jpg', label: 'Hanging Gardens'),
+    (path: 'assets/covers/wonder_artemis.jpg', label: 'Temple of Artemis'),
+    (path: 'assets/covers/wonder_zeus.jpg', label: 'Statue of Zeus'),
+    (path: 'assets/covers/wonder_mausoleum.jpg', label: 'Mausoleum'),
+    (path: 'assets/covers/wonder_colossus.jpg', label: 'Colossus of Rhodes'),
+    (path: 'assets/covers/wonder_pharos.jpg', label: 'Lighthouse of Alexandria'),
   ];
 
   /// The value to store in `cover_image_url` for a bundled cover.
@@ -112,7 +119,7 @@ class TripCover extends StatelessWidget {
   /// hue's lightness, so the cover still has depth and stays unmistakably one
   /// colour.
   ///
-  /// Deliberately no teal, green or cyan: beside the ember brand those hues
+  /// Deliberately no green or amber: beside the blue brand those hues
   /// read as a second, unrelated colour rather than a shade of the same
   /// surface.
   ///
@@ -121,14 +128,14 @@ class TripCover extends StatelessWidget {
   /// alone would look identical. These range from near-espresso to bright
   /// amber.
   static const List<Color> _baseColors = <Color>[
-    Color(0xFFB91C1C), // red
-    Color(0xFF9F1239), // crimson
-    Color(0xFFC2410C), // ember
-    Color(0xFFD97706), // amber
-    Color(0xFF7C2D12), // rust
-    Color(0xFFBE123C), // rose
-    Color(0xFF92400E), // sepia
-    Color(0xFFEA580C), // orange
+    Color(0xFF0C4A6E), // deep navy
+    Color(0xFF075985), // deep sky
+    Color(0xFF0369A1), // sky
+    Color(0xFF155E75), // cyan, deep
+    Color(0xFF0E7490), // cyan
+    Color(0xFF0284C7), // sky, bright
+    Color(0xFF0EA5E9), // sky, light
+    Color(0xFF1E40AF), // blue
   ];
 
   /// Deterministic palette index.

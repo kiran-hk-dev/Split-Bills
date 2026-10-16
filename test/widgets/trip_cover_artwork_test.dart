@@ -142,23 +142,26 @@ void main() {
     );
   });
 
-  testWidgets('no palette reintroduces the green-to-cyan cast that was removed', (
+testWidgets('every cover palette sits inside the brand arc', (
     WidgetTester tester,
   ) async {
-for (int i = 0; i < 8; i++) {
+    // This test used to assert the opposite: that no palette fell in the
+    // 90-195 green-to-cyan band, because the brand was ember and that band
+    // read as a clash. The brand is blue now, so cyan is in-family and the
+    // band that clashes is the warm one. The property worth keeping is the
+    // same either way: the covers belong to the brand.
+    for (int i = 0; i < 8; i++) {
       final List<Color> palette = TripCover.paletteFor('$i:seed');
       expect(palette, hasLength(3));
 
       for (final Color c in palette) {
         final double hue = HSVColor.fromColor(c).hue;
-        // 90 to 195 degrees is green through cyan. The old palette sat squarely
-        // in that band, which is what read as "green and blue".
-        final bool isGreenCyan = hue >= 90 && hue <= 195;
+        final bool inBrandArc = hue >= 175 && hue <= 250;
         expect(
-          isGreenCyan,
-          isFalse,
+          inBrandArc,
+          isTrue,
           reason: 'palette $i contains $c at hue ${hue.toStringAsFixed(0)}, '
-              'which is green-to-cyan',
+              'outside the blue brand arc',
         );
       }
     }
